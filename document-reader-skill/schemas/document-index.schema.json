@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/document-reader/document-index.schema.json",
+  "title": "Document Folder Index",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "requirements_root", "generated_utc", "documents", "truncated", "supported_extensions"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "requirements_root": { "type": "string" },
+    "generated_utc": { "type": "string", "format": "date-time" },
+    "documents": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "type", "size_bytes", "modified_utc", "sha256", "structure"],
+        "properties": {
+          "path": { "type": "string" },
+          "type": { "enum": ["excel", "markdown"] },
+          "size_bytes": { "type": "integer", "minimum": 0 },
+          "modified_utc": { "type": "string", "format": "date-time" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "structure": { "type": "object" }
+        }
+      }
+    },
+    "truncated": { "type": "boolean" },
+    "supported_extensions": { "type": "array", "items": { "type": "string" } }
+  }
+}
+

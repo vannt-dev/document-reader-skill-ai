@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/document-reader/document-result.schema.json",
+  "title": "Document Reader Result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "query", "documents", "blocks", "warnings"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "query": { "type": "string" },
+    "documents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "type"],
+        "properties": {
+          "path": { "type": "string" },
+          "type": { "enum": ["excel", "markdown", "unknown"] }
+        }
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "source", "data"],
+        "properties": {
+          "kind": { "enum": ["structure", "table", "text", "match"] },
+          "source": { "type": "object" },
+          "data": {}
+        }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } }
+  }
+}
+

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Document Reader"
+  short_description: "Apply a requirements folder with durable context"
+  default_prompt: "Use $document-reader on the requirements folder I provide, reuse project-local knowledge, update the affected code and tests, and validate the result."
