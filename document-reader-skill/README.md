@@ -65,6 +65,13 @@ python scripts/build_cache.py --manifest .document-reader/manifest.json --share 
 python scripts/query_cache.py "authentication" --output context.json
 ```
 
+Cấu trúc hai file được mô tả bằng JSON Schema trong `schemas/`:
+`document-cache.schema.json` cho `index.json` và `document-cache-file.schema.json`
+cho từng `cache/<doc-id>.json`.
+
+`query_cache.py` chịu lỗi cục bộ: nếu một file cache hỏng hoặc `index.json` không
+đọc được, nó báo cảnh báo và bỏ qua phần đó thay vì làm hỏng cả truy vấn.
+
 ## Mô hình sử dụng chính
 
 Giả sử project có cấu trúc:

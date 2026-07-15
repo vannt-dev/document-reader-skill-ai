@@ -11,12 +11,23 @@ from pathlib import Path
 from common import add_output_argument, emit
 
 
-def _load_json(path: Path):
-    return json.loads(path.read_text(encoding="utf-8")) if path.is_file() else None
+def _read_json(path: Path):
+    """Return (data, corrupt).
+
+    data is the parsed JSON, or None when the file is absent. corrupt is True
+    when the file exists but cannot be read as JSON, so callers can degrade
+    gracefully instead of aborting the whole query.
+    """
+    if not path.is_file():
+        return None, False
+    try:
+        return json.loads(path.read_text(encoding="utf-8")), False
+    except (json.JSONDecodeError, OSError):
+        return None, True
 
 
 def _manifest_hashes(cache_dir: Path) -> dict[str, str]:
-    manifest = _load_json(cache_dir / "manifest.json")
+    manifest, _ = _read_json(cache_dir / "manifest.json")
     if not manifest:
         return {}
     return {doc["path"]: doc.get("sha256", "") for doc in manifest.get("documents", [])}
@@ -25,8 +36,11 @@ def _manifest_hashes(cache_dir: Path) -> dict[str, str]:
 def query(cache_dir, keyword=None, doc=None, block_id=None, label=None, max_results=50) -> dict:
     cache_dir = Path(cache_dir)
     warnings: list[str] = []
-    index = _load_json(cache_dir / "index.json")
-    if not index:
+    index, index_corrupt = _read_json(cache_dir / "index.json")
+    if index_corrupt:
+        warnings.append("index.json is unreadable; rebuild with build_cache.py.")
+        return _envelope(keyword, doc, block_id, label, [], False, warnings)
+    if index is None:
         warnings.append("No index.json found; run build_cache.py first.")
         return _envelope(keyword, doc, block_id, label, [], False, warnings)
 
@@ -41,8 +55,11 @@ def query(cache_dir, keyword=None, doc=None, block_id=None, label=None, max_resu
             continue
         current = manifest_hashes.get(document["path"])
         stale = current is not None and current != document.get("sha256")
-        cache_payload = _load_json(cache_dir / "cache" / f"{document['doc_id']}.json")
-        blocks = cache_payload.get("blocks", []) if cache_payload else []
+        cache_payload, cache_corrupt = _read_json(cache_dir / "cache" / f"{document['doc_id']}.json")
+        if cache_corrupt or cache_payload is None:
+            warnings.append(f"cache for {document['doc_id']} is unreadable; rebuild with build_cache.py.")
+            continue
+        blocks = cache_payload.get("blocks", [])
         for block in blocks:
             if block_id and block["block_id"] != block_id:
                 continue
