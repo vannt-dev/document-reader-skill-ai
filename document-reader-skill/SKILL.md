@@ -22,11 +22,12 @@ When the user supplies only a requirements folder path:
 1. Treat the current working directory as the project boundary and the supplied path as the requirements boundary.
 2. Read `.document-reader/knowledge.md` when it already exists.
 3. Run `scripts/index_documents.py REQUIREMENTS_FOLDER --output .document-reader/manifest.json` from the project.
-4. Compare document hashes with knowledge sources. Invalidate and re-read knowledge derived from changed files.
-5. Inspect and extract actionable requirements without asking the user to name individual files.
-6. Map requirements to current code, implement a coherent batch, update tests, and validate.
-7. Create or update `.document-reader/knowledge.md` using `references/project-memory-template.md`.
-8. Preserve remaining confirmed requirements as `pending` for the next context.
+4. Run `scripts/build_cache.py --manifest .document-reader/manifest.json` to extract full content into `.document-reader/cache/` and `.document-reader/index.json`.
+5. Compare document hashes with knowledge sources. Invalidate and re-read knowledge derived from changed files.
+6. Inspect and extract actionable requirements without asking the user to name individual files.
+7. Map requirements to current code, implement a coherent batch, update tests, and validate.
+8. Create or update `.document-reader/knowledge.md` using `references/project-memory-template.md`.
+9. Preserve remaining confirmed requirements as `pending` for the next context.
 
 Treat a request such as `Apply requirements from ./requirements` as authorization to perform this workflow. Ask only when requirement ambiguity would materially change product behavior or when the folder is outside the authorized filesystem boundary.
 
@@ -52,6 +53,9 @@ Use project files as durable memory; do not rely on a model remembering a previo
 - Re-run the index and distrust entries whose source hash changed.
 - Keep knowledge concise; never copy entire documents, secrets, or speculative conclusions.
 - Do not commit `.document-reader/` unless the user or repository policy wants shared team memory.
+- Store full normalized content once in `.document-reader/cache/<doc-id>.json` and a small catalog in `.document-reader/index.json` via `build_cache.py`.
+- At the start of a later context, load `index.json` (not the whole cache); fetch detail with `query_cache.py` instead of re-parsing source documents.
+- Rebuild only documents whose manifest hash changed; `query_cache.py` flags stale blocks and withholds their content until rebuilt.
 
 ## Coding Agent Mode: update the current project
 
@@ -86,6 +90,8 @@ python scripts/read_excel.py requirements/api.xlsx --sheet API --range A1:H40 --
 python scripts/read_markdown.py requirements/change-request.md --heading "Authentication"
 python scripts/normalize_output.py extracted.json --query "Implement authentication changes"
 python scripts/run_ai.py context.json --provider anthropic --model MODEL_ID --task summarize --dry-run
+python scripts/build_cache.py --manifest .document-reader/manifest.json --max-block-rows 500
+python scripts/query_cache.py "authentication" --doc api-xlsx --max-results 25
 ```
 
 ## Guardrails
