@@ -72,3 +72,22 @@ def test_query_truncates_only_when_extra_match_exists(tmp_path):
     capped = query_cache.query(cache_dir, keyword="users", max_results=1)
     assert len(capped["results"]) == 1
     assert capped["truncated"] is True
+
+
+def test_query_skips_corrupt_cache_file(tmp_path):
+    cache_dir = tmp_path / ".document-reader"
+    _seed(cache_dir)
+    # Corrupt one document's cache file; the query must not crash.
+    (cache_dir / "cache" / "api-md.json").write_text("{ not valid json", encoding="utf-8")
+    result = query_cache.query(cache_dir, keyword="users")
+    assert result["results"] == []
+    assert any("api-md" in w for w in result["warnings"])
+
+
+def test_query_reports_corrupt_index(tmp_path):
+    cache_dir = tmp_path / ".document-reader"
+    _seed(cache_dir)
+    (cache_dir / "index.json").write_text("{ broken", encoding="utf-8")
+    result = query_cache.query(cache_dir, keyword="users")
+    assert result["results"] == []
+    assert any("index.json" in w for w in result["warnings"])
