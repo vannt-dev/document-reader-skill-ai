@@ -51,7 +51,10 @@ def extract_excel(path: Path, window: int) -> list[dict]:
             ranges = excel_block_ranges(max_row, window)
             for start, end in ranges:
                 rows = []
-                for cells in sheet.iter_rows(min_row=start, max_row=end, max_col=max_col):
+                # Row 1 is the header; it lives only in `headers`, never in `rows`,
+                # so every block (including the first) carries data rows only.
+                data_start = max(start, 2)
+                for cells in sheet.iter_rows(min_row=data_start, max_row=end, max_col=max_col):
                     rows.append({
                         "row": cells[0].row,
                         "cells": [json_value(cell.value) for cell in cells],
@@ -75,9 +78,18 @@ def build(manifest_path: Path, cache_dir: Path, window: int, force: bool = False
     cache_subdir = cache_dir / "cache"
     cache_subdir.mkdir(parents=True, exist_ok=True)
     documents = []
+    used_doc_ids: set[str] = set()
     for entry in manifest.get("documents", []):
         rel = entry["path"]
         doc_id = doc_id_for(rel)
+        # Different paths can slugify to the same doc_id (e.g. "a-b.md" and
+        # "a_b.md"); disambiguate so one cache file never overwrites another.
+        if doc_id in used_doc_ids:
+            suffix = 2
+            while f"{doc_id}-{suffix}" in used_doc_ids:
+                suffix += 1
+            doc_id = f"{doc_id}-{suffix}"
+        used_doc_ids.add(doc_id)
         sha256 = entry.get("sha256", "")
         doc_type = entry.get("type", "excel")
         cache_file = cache_subdir / f"{doc_id}.json"
