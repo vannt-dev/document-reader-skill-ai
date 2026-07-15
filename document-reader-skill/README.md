@@ -45,6 +45,26 @@ nguồn vẫn khớp. Đây là cơ chế lưu nhớ qua file, không phụ thu�
 Không commit `.document-reader/` mặc định. Có thể commit nếu team muốn chia sẻ
 knowledge giữa người dùng và các coding agent, sau khi kiểm tra chính sách repo.
 
+### Cache nội dung đầy đủ với build_cache.py và query_cache.py
+
+`build_cache.py` trích nội dung đầy đủ từ manifest và ghi ra hai lớp lưu trữ:
+`.document-reader/cache/<doc-id>.json` chứa toàn bộ block đã chuẩn hóa của từng
+tài liệu, còn `.document-reader/index.json` chỉ chứa một catalog nhỏ gọn
+(`doc_id`, `path`, `sha256`, `type`, danh sách block `block_id`/`label`). Build
+là incremental theo hash: chỉ tài liệu có `sha256` thay đổi so với lần chạy
+trước mới được trích lại. Dùng `--share local|commit` để cấu hình
+`.document-reader/` có được commit vào repo hay không (`cache_config.py`).
+
+`query_cache.py` tra cứu block đã cache theo từ khóa, `--doc`, `--block-id`,
+hoặc `--label` mà không bao giờ đọc lại tài liệu nguồn. Nếu hash trong manifest
+không còn khớp với hash đã cache, kết quả được đánh dấu stale và nội dung bị
+giữ lại cho đến khi rebuild.
+
+```bash
+python scripts/build_cache.py --manifest .document-reader/manifest.json --share local
+python scripts/query_cache.py "authentication" --output context.json
+```
+
 ## Mô hình sử dụng chính
 
 Giả sử project có cấu trúc:
