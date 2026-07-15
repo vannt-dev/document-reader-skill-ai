@@ -61,3 +61,14 @@ def test_query_reports_missing_cache(tmp_path):
 def test_query_cache_never_imports_openpyxl():
     source = Path(query_cache.__file__).read_text(encoding="utf-8")
     assert "openpyxl" not in source
+
+
+def test_query_truncates_only_when_extra_match_exists(tmp_path):
+    cache_dir = tmp_path / ".document-reader"
+    _seed(cache_dir)
+    full = query_cache.query(cache_dir, keyword="users", max_results=2)
+    assert len(full["results"]) == 2
+    assert full["truncated"] is False
+    capped = query_cache.query(cache_dir, keyword="users", max_results=1)
+    assert len(capped["results"]) == 1
+    assert capped["truncated"] is True

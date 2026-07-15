@@ -52,6 +52,9 @@ def query(cache_dir, keyword=None, doc=None, block_id=None, label=None, max_resu
                 haystack = (block["label"] + json.dumps(block["content"], ensure_ascii=False)).casefold()
                 if needle not in haystack:
                     continue
+            if len(results) >= max_results:
+                truncated = True
+                break
             result = {
                 "doc_id": document["doc_id"],
                 "path": document["path"],
@@ -65,9 +68,6 @@ def query(cache_dir, keyword=None, doc=None, block_id=None, label=None, max_resu
             else:
                 result["content"] = block["content"]
             results.append(result)
-            if len(results) >= max_results:
-                truncated = True
-                break
         if truncated:
             break
 
