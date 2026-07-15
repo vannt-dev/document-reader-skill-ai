@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/document-reader/document-cache-file.schema.json",
+  "title": "Document Reader Cache File",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["doc_id", "path", "sha256", "type", "blocks"],
+  "properties": {
+    "doc_id": { "type": "string" },
+    "path": { "type": "string" },
+    "sha256": { "type": "string" },
+    "type": { "enum": ["excel", "markdown", "unknown"] },
+    "error": { "type": "string" },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["block_id", "ref", "label", "content"],
+        "properties": {
+          "block_id": { "type": "string" },
+          "ref": { "type": "object" },
+          "label": { "type": "string" },
+          "content": { "type": "object" }
+        }
+      }
+    }
+  }
+}
