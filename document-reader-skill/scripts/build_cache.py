@@ -10,6 +10,7 @@ from pathlib import Path
 
 from cache_common import column_letter, doc_id_for, excel_block_ranges, markdown_sections, slugify
 from common import add_output_argument, emit, json_value
+import cache_config
 
 
 def extract_markdown(path: Path) -> list[dict]:
@@ -134,6 +135,7 @@ def main() -> int:
     parser.add_argument("--cache-dir", default=".document-reader")
     parser.add_argument("--max-block-rows", type=int, default=500)
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--share", choices=["local", "commit"], help="Set cache share scope and adjust .gitignore")
     add_output_argument(parser)
     args = parser.parse_args()
     try:
@@ -143,6 +145,12 @@ def main() -> int:
         if not manifest_path.is_file():
             raise FileNotFoundError(f"Manifest not found: {manifest_path}; run index_documents.py first")
         index = build(manifest_path, Path(args.cache_dir), args.max_block_rows, args.force)
+        if args.share:
+            cache_dir = Path(args.cache_dir)
+            cache_config.write_config(cache_dir, args.share)
+            cache_config.apply_gitignore(cache_dir.parent, args.share)
+            if args.share == "commit":
+                print("warning: share=commit will version cache content; verify documents contain no secrets.", file=sys.stderr)
         emit({
             "cache_dir": args.cache_dir,
             "documents": len(index["documents"]),
