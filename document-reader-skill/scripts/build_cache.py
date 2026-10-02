@@ -49,6 +49,36 @@ def extract_pdf(path: Path) -> list[dict]:
         })
     if not blocks:
         raise ValueError("No extractable text; a scanned PDF needs OCR before it can be read")
+    return blocks + pdf_table_blocks(path)
+
+
+def pdf_table_blocks(path: Path) -> list[dict]:
+    """Tables as their own blocks, shaped like an Excel sheet, so a query can
+    return a table with its header instead of a page of loose text.
+
+    Table extraction is optional: without pdfplumber, or when it cannot read
+    the file, the text blocks stand on their own.
+    """
+    import pdf_tables
+
+    if not pdf_tables.available():
+        return []
+    try:
+        tables = pdf_tables.extract_tables(path)
+    except Exception:  # noqa: BLE001 - the page text is already cached
+        return []
+    blocks = []
+    for table in tables:
+        page, number, rows = table["page"], table["table"], table["rows"]
+        blocks.append({
+            "block_id": f"page-{page}-table-{number}",
+            "ref": {"page": page, "table": number},
+            "label": f"Page {page} table {number}",
+            "content": {
+                "headers": rows[0],
+                "rows": [{"row": index, "cells": cells} for index, cells in enumerate(rows[1:], 2)],
+            },
+        })
     return blocks
 
 

@@ -30,7 +30,19 @@ def main() -> int:
         raw = sys.stdin.read() if args.input == "-" else Path(args.input).read_text(encoding="utf-8")
         payload = json.loads(raw)
         blocks = []
-        if "matches" in payload:
+        if payload.get("type") == "pdf" and isinstance(payload.get("tables"), list):
+            blocks = [
+                {
+                    "kind": "table",
+                    "source": {**source_ref(payload), "page": table["page"], "table": table["table"]},
+                    "data": {
+                        "headers": table["cells"][0] if table["cells"] else [],
+                        "rows": [{"row": index, "cells": cells} for index, cells in enumerate(table["cells"][1:], 2)],
+                    },
+                }
+                for table in payload["tables"]
+            ]
+        elif "matches" in payload:
             blocks = [{"kind": "match", "source": source_ref(payload), "data": item} for item in payload["matches"]]
         elif payload.get("type") == "excel" and "rows" in payload:
             blocks = [{"kind": "table", "source": source_ref(payload), "data": {"headers": payload.get("headers", []), "rows": payload["rows"]}}]

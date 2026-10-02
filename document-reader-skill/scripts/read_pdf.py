@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Read a PDF's page outline or the text of a bounded page range."""
+"""Read a PDF's page outline, the text of a bounded page range, or its tables."""
 
 from __future__ import annotations
 
@@ -60,19 +60,47 @@ def read(path: Path, pages: str | None, max_chars: int) -> dict:
     }
 
 
+def tables(path: Path, pages: str | None, max_rows: int) -> dict:
+    """Tables on the selected pages, each capped at `max_rows` rows."""
+    from pdf_tables import extract_tables
+
+    start, end = parse_pages(pages, len(open_pdf(path).pages))
+    found, truncated = [], False
+    for table in extract_tables(path, start, end):
+        rows = table["rows"]
+        truncated = truncated or len(rows) > max_rows
+        found.append({
+            "page": table["page"], "table": table["table"],
+            "rows": len(rows), "columns": max(len(row) for row in rows),
+            "cells": rows[:max_rows],
+        })
+    return {
+        "document": str(path), "type": "pdf",
+        "source": {"start_page": start, "end_page": end},
+        "tables": found, "truncated": truncated,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("document")
     parser.add_argument("--outline-only", action="store_true")
     parser.add_argument("--pages", help="One page (3) or an inclusive range (3-5)")
+    parser.add_argument("--tables", action="store_true", help="Return the tables on the pages instead of their text")
+    parser.add_argument("--max-rows", type=int, default=100, help="Row limit per table, with --tables")
     parser.add_argument("--max-chars", type=int, default=12000)
     add_output_argument(parser)
     args = parser.parse_args()
     try:
         path = require_path(args.document, {".pdf"})
-        if args.max_chars < 1:
-            raise ValueError("max-chars must be positive")
-        emit(outline(path) if args.outline_only else read(path, args.pages, args.max_chars), args.output)
+        if args.max_chars < 1 or args.max_rows < 1:
+            raise ValueError("max-chars and max-rows must be positive")
+        if args.outline_only:
+            emit(outline(path), args.output)
+        elif args.tables:
+            emit(tables(path, args.pages, args.max_rows), args.output)
+        else:
+            emit(read(path, args.pages, args.max_chars), args.output)
         return 0
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)
