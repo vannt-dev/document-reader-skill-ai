@@ -101,6 +101,30 @@ def docx_metadata(path: Path, max_headings: int) -> dict:
     }
 
 
+def pptx_metadata(path: Path, max_headings: int) -> dict:
+    from doc_text import pptx_slides
+
+    slides = pptx_slides(path)
+    return {
+        "slide_count": len(slides),
+        "slides": [{"slide": slide["slide"], "title": slide["title"]} for slide in slides[:max_headings]],
+        "slides_truncated": len(slides) > max_headings,
+    }
+
+
+def csv_metadata(path: Path, preview_rows: int, max_columns: int) -> dict:
+    from read_csv import outline
+
+    structure = outline(path, preview_rows, max_columns)
+    del structure["document"], structure["type"]
+    return structure
+
+
+# Types added after Excel and Markdown: a file of one of these that cannot be
+# read is recorded on the document rather than failing the whole index.
+LATER_TYPES = {"pdf": pdf_metadata, "docx": docx_metadata, "pptx": pptx_metadata, "csv": csv_metadata}
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("folder", help="Authorized requirements folder")
@@ -135,13 +159,15 @@ def main() -> int:
             }
             if item["type"] == "markdown":
                 item["structure"] = markdown_metadata(path, args.max_headings)
-            elif item["type"] in {"pdf", "docx"}:
+            elif item["type"] in LATER_TYPES:
                 # A folder that only held Excel and Markdown before may now pick up a PDF
                 # nobody can open (no pypdf, a password, a damaged file). Record that on
                 # the document instead of failing the whole index.
                 try:
-                    metadata = pdf_metadata if item["type"] == "pdf" else docx_metadata
-                    item["structure"] = metadata(path, args.max_headings)
+                    if item["type"] == "csv":
+                        item["structure"] = csv_metadata(path, args.preview_rows, args.max_columns)
+                    else:
+                        item["structure"] = LATER_TYPES[item["type"]](path, args.max_headings)
                 except Exception as exc:  # noqa: BLE001
                     item["structure"] = {"error": str(exc)}
             else:

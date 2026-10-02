@@ -17,7 +17,7 @@
           "doc_id": { "type": "string" },
           "path": { "type": "string" },
           "sha256": { "type": "string" },
-          "type": { "enum": ["excel", "markdown", "pdf", "docx", "unknown"] },
+          "type": { "enum": ["excel", "markdown", "pdf", "docx", "pptx", "csv", "unknown"] },
           "error": { "type": "string" },
           "blocks": {
             "type": "array",

@@ -102,6 +102,56 @@ def extract_docx(path: Path) -> list[dict]:
     return blocks
 
 
+def extract_pptx(path: Path) -> list[dict]:
+    from doc_text import pptx_render, pptx_slides
+
+    blocks = []
+    for slide in pptx_slides(path):
+        text = pptx_render(slide)
+        if not text:
+            continue
+        number = slide["slide"]
+        blocks.append({
+            "block_id": f"slide-{number}",
+            "ref": {"slide": number, "title": slide["title"]},
+            "label": slide["title"] or f"Slide {number}",
+            "content": {"text": text},
+        })
+    return blocks
+
+
+def extract_csv(path: Path, window: int) -> list[dict]:
+    """Same shape as an Excel sheet: the first row is the header, rows are data."""
+    from csv_text import csv_rows
+
+    _, rows = csv_rows(path)
+    headers: list[str] = []
+    data: list[dict] = []
+    width = 0
+    for number, cells in rows:
+        width = max(width, len(cells))
+        if number == 1:
+            headers = cells
+        else:
+            data.append({"row": number, "cells": cells})
+    if not headers:
+        return []
+    last_col = column_letter(max(width, 1))
+    blocks = []
+    for start, end in excel_block_ranges(len(data) + 1, window):
+        cell_range = f"A{start}:{last_col}{end}"
+        blocks.append({
+            "block_id": f"rows!{cell_range}",
+            "ref": {"range": cell_range},
+            "label": path.name if len(data) + 1 <= window else f"{path.name} rows {start}-{end}",
+            "content": {
+                "headers": headers,
+                "rows": [row for row in data if start <= row["row"] <= end],
+            },
+        })
+    return blocks
+
+
 def extract_excel(path: Path, window: int) -> list[dict]:
     from openpyxl import load_workbook
 
@@ -179,6 +229,10 @@ def build(manifest_path: Path, cache_dir: Path, window: int, force: bool = False
                 cache_payload["blocks"] = extract_pdf(source)
             elif doc_type == "docx":
                 cache_payload["blocks"] = extract_docx(source)
+            elif doc_type == "pptx":
+                cache_payload["blocks"] = extract_pptx(source)
+            elif doc_type == "csv":
+                cache_payload["blocks"] = extract_csv(source, window)
             else:
                 cache_payload["blocks"] = extract_excel(source, window)
         except Exception as exc:  # noqa: BLE001 - record, do not abort the whole build
