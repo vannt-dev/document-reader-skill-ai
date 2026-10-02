@@ -10,9 +10,9 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from common import add_output_argument, emit, json_value
+from common import DOCUMENT_TYPES, add_output_argument, emit, json_value
 
-SUPPORTED = {".md", ".markdown", ".xlsx", ".xlsm"}
+SUPPORTED = set(DOCUMENT_TYPES)
 HEADING = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
 
 
@@ -76,6 +76,31 @@ def excel_metadata(path: Path, preview_rows: int, max_columns: int) -> dict:
     return {"sheets": sheets}
 
 
+def pdf_metadata(path: Path, max_headings: int) -> dict:
+    from doc_text import open_pdf, pdf_bookmarks
+
+    reader = open_pdf(path)
+    bookmarks, truncated = pdf_bookmarks(reader, max_headings)
+    return {
+        "page_count": len(reader.pages),
+        "bookmarks": bookmarks,
+        "bookmarks_truncated": truncated,
+    }
+
+
+def docx_metadata(path: Path, max_headings: int) -> dict:
+    from doc_text import docx_items, docx_outline
+
+    items = docx_items(path)
+    headings = docx_outline(items)
+    return {
+        "paragraph_count": len(items),
+        "table_rows": sum(1 for item in items if item["kind"] == "table_row"),
+        "headings": headings[:max_headings],
+        "headings_truncated": len(headings) > max_headings,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("folder", help="Authorized requirements folder")
@@ -103,13 +128,22 @@ def main() -> int:
             stat = path.stat()
             item = {
                 "path": path.relative_to(root).as_posix(),
-                "type": "markdown" if path.suffix.lower() in {".md", ".markdown"} else "excel",
+                "type": DOCUMENT_TYPES[path.suffix.lower()],
                 "size_bytes": stat.st_size,
                 "modified_utc": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(),
                 "sha256": digest(path),
             }
             if item["type"] == "markdown":
                 item["structure"] = markdown_metadata(path, args.max_headings)
+            elif item["type"] in {"pdf", "docx"}:
+                # A folder that only held Excel and Markdown before may now pick up a PDF
+                # nobody can open (no pypdf, a password, a damaged file). Record that on
+                # the document instead of failing the whole index.
+                try:
+                    metadata = pdf_metadata if item["type"] == "pdf" else docx_metadata
+                    item["structure"] = metadata(path, args.max_headings)
+                except Exception as exc:  # noqa: BLE001
+                    item["structure"] = {"error": str(exc)}
             else:
                 item["structure"] = excel_metadata(path, args.preview_rows, args.max_columns)
             documents.append(item)

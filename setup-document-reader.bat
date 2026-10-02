@@ -63,8 +63,8 @@ if errorlevel 1 (
 )
 
 echo [5/6] Checking optional dependencies...
-if /I "%INSTALL_DEPS%"=="/install-deps" "%PYTHON%" -m pip install openpyxl
-if /I "%INSTALL_DEPS%"=="--install-deps" "%PYTHON%" -m pip install openpyxl
+if /I "%INSTALL_DEPS%"=="/install-deps" "%PYTHON%" -m pip install openpyxl pypdf
+if /I "%INSTALL_DEPS%"=="--install-deps" "%PYTHON%" -m pip install openpyxl pypdf
 
 echo [6/6] Indexing requirements...
 "%PYTHON%" "%SKILL_SOURCE%\scripts\index_documents.py" "%REQUIREMENTS_ROOT%" --output "%PROJECT_ROOT%\.document-reader\manifest.json"

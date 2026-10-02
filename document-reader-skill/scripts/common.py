@@ -8,6 +8,16 @@ from pathlib import Path
 from typing import Any
 
 
+DOCUMENT_TYPES = {
+    ".md": "markdown",
+    ".markdown": "markdown",
+    ".xlsx": "excel",
+    ".xlsm": "excel",
+    ".pdf": "pdf",
+    ".docx": "docx",
+}
+
+
 def add_output_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--output", help="Write JSON to this file instead of stdout")
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Search Excel cells or Markdown lines and return compact cited matches."""
+"""Search Excel cells, Markdown lines, PDF pages or Word paragraphs and return compact cited matches."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import argparse
 import re
 import sys
 
-from common import add_output_argument, emit, json_value, require_path
+from common import DOCUMENT_TYPES, add_output_argument, emit, json_value, require_path
 
 
 def matcher(query: str, regex: bool, case_sensitive: bool):
@@ -28,7 +28,7 @@ def main() -> int:
     add_output_argument(parser)
     args = parser.parse_args()
     try:
-        path = require_path(args.document, {".xlsx", ".xlsm", ".md", ".markdown"})
+        path = require_path(args.document, set(DOCUMENT_TYPES))
         if args.max_results < 1 or args.context_lines < 0:
             raise ValueError("max-results must be positive and context-lines non-negative")
         matches, truncated = [], False
@@ -41,6 +41,36 @@ def main() -> int:
                 start, end = max(1, number - args.context_lines), min(len(lines), number + args.context_lines)
                 matches.append({"line": number, "context_start": start, "context_end": end, "text": "\n".join(lines[start - 1:end])})
             kind = "markdown"
+        elif path.suffix.lower() == ".pdf":
+            from doc_text import open_pdf, pdf_page_text
+
+            reader = open_pdf(path)
+            for page in range(1, len(reader.pages) + 1):
+                lines = pdf_page_text(reader, page).splitlines()
+                for number, line in enumerate(lines, 1):
+                    if not find(line):
+                        continue
+                    if len(matches) >= args.max_results:
+                        truncated = True
+                        break
+                    start, end = max(1, number - args.context_lines), min(len(lines), number + args.context_lines)
+                    matches.append({"page": page, "line": number, "text": "\n".join(lines[start - 1:end])})
+                if truncated:
+                    break
+            kind = "pdf"
+        elif path.suffix.lower() == ".docx":
+            from doc_text import docx_items, docx_render
+
+            items = docx_items(path)
+            hits = [item["index"] for item in items if find(item["text"])]
+            truncated = len(hits) > args.max_results
+            for index in hits[:args.max_results]:
+                start, end = max(1, index - args.context_lines), min(len(items), index + args.context_lines)
+                matches.append({
+                    "paragraph": index, "context_start": start, "context_end": end,
+                    "text": docx_render(items[start - 1:end]),
+                })
+            kind = "docx"
         else:
             from openpyxl import load_workbook
 

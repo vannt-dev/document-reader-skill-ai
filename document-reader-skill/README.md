@@ -1,6 +1,6 @@
 # Document Reader
 
-Document Reader giúp coding agent đọc requirement Excel/Markdown trong project
+Document Reader giúp coding agent đọc requirement Excel/Markdown/PDF/Word trong project
 mà không nạp toàn bộ tài liệu vào model context.
 
 ## Trải nghiệm mục tiêu
@@ -186,12 +186,14 @@ Copy nguyên thư mục `document-reader-skill` vào vị trí tương ứng, đ
 
 - Python 3.10+
 - `openpyxl` cho `.xlsx` và `.xlsm`
+- `pypdf` cho `.pdf`
 
 ```bash
-python -m pip install openpyxl
+python -m pip install openpyxl pypdf
 ```
 
-Markdown chỉ dùng thư viện chuẩn. `.xls` cũ cần được chuyển sang `.xlsx`.
+Markdown và `.docx` chỉ dùng thư viện chuẩn. `.xls` cũ cần được chuyển sang `.xlsx`, `.doc` cũ sang `.docx`.
+PDF scan không có lớp chữ không đọc được (skill không làm OCR).
 
 ## Tự động cài Python environment
 
@@ -256,6 +258,8 @@ Inspect workbook hoặc outline Markdown:
 ```bash
 python scripts/inspect_excel.py requirements/api.xlsx --preview-rows 5 --output structure.json
 python scripts/read_markdown.py requirements/business.md --outline-only --output outline.json
+python scripts/read_pdf.py requirements/policy.pdf --outline-only --output outline.json
+python scripts/read_docx.py requirements/spec.docx --outline-only --output outline.json
 ```
 
 Tìm và trích phần liên quan:
@@ -264,6 +268,8 @@ Tìm và trích phần liên quan:
 python scripts/search_document.py requirements/api.xlsx "authentication" --max-results 20
 python scripts/read_excel.py requirements/api.xlsx --sheet API --range A1:H50 --output extracted.json
 python scripts/read_markdown.py requirements/business.md --heading "Authentication" --output extracted.json
+python scripts/read_pdf.py requirements/policy.pdf --pages 3-5 --output extracted.json
+python scripts/read_docx.py requirements/spec.docx --heading "Authentication" --output extracted.json
 ```
 
 Chuẩn hóa nếu cần artifact trung gian:

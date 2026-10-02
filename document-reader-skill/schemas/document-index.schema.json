@@ -17,7 +17,7 @@
         "required": ["path", "type", "size_bytes", "modified_utc", "sha256", "structure"],
         "properties": {
           "path": { "type": "string" },
-          "type": { "enum": ["excel", "markdown"] },
+          "type": { "enum": ["excel", "markdown", "pdf", "docx"] },
           "size_bytes": { "type": "integer", "minimum": 0 },
           "modified_utc": { "type": "string", "format": "date-time" },
           "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },

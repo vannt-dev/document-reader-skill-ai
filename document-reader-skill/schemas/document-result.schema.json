@@ -17,7 +17,7 @@
         "required": ["path", "type"],
         "properties": {
           "path": { "type": "string" },
-          "type": { "enum": ["excel", "markdown", "unknown"] }
+          "type": { "enum": ["excel", "markdown", "pdf", "docx", "unknown"] }
         }
       }
     },

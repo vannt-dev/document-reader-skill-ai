@@ -30,10 +30,10 @@ if ($LASTEXITCODE -ne 0) { throw "uv could not create the virtual environment" }
 
 $Python = Join-Path $VenvPath "Scripts\python.exe"
 Write-Host "Installing document-reader dependencies..."
-& $Uv pip install --python $Python openpyxl
+& $Uv pip install --python $Python openpyxl pypdf
 if ($LASTEXITCODE -ne 0) { throw "Dependency installation failed" }
 
-& $Python -c "import openpyxl, sys; print(sys.version); print('openpyxl', openpyxl.__version__)"
+& $Python -c "import openpyxl, pypdf, sys; print(sys.version); print('openpyxl', openpyxl.__version__); print('pypdf', pypdf.__version__)"
 if ($LASTEXITCODE -ne 0) { throw "Environment verification failed" }
 
 Write-Host "Document Reader Python environment is ready: $Python"

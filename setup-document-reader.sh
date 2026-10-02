@@ -76,11 +76,11 @@ if [ -z "$PYTHON" ] || ! "$PYTHON" -c 'import sys; raise SystemExit(0 if sys.ver
 fi
 
 echo "[5/6] Checking optional dependencies..."
-if [ "$INSTALL_DEPS" = "--install-deps" ] || [ "$INSTALL_DEPS" = "/install-deps" ]; then "$PYTHON" -m pip install openpyxl; fi
+if [ "$INSTALL_DEPS" = "--install-deps" ] || [ "$INSTALL_DEPS" = "/install-deps" ]; then "$PYTHON" -m pip install openpyxl pypdf; fi
 
 echo "[6/6] Indexing requirements..."
 "$PYTHON" "$SKILL_SOURCE/scripts/index_documents.py" "$REQUIREMENTS_ROOT" --output "$PROJECT_ROOT/.document-reader/manifest.json" || {
-  echo "ERROR: Indexing failed. Install openpyxl with --install-deps when Excel files are present." >&2; exit 4;
+  echo "ERROR: Indexing failed. Install openpyxl and pypdf with --install-deps when Excel or PDF files are present." >&2; exit 4;
 }
 
 echo "Document Reader deployment completed for agent: $AGENT"
