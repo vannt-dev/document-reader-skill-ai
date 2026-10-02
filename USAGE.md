@@ -1,6 +1,6 @@
 # Hướng dẫn sử dụng Document Reader
 
-Hướng dẫn thực hành để cài và dùng skill: đọc requirement Excel/Markdown/PDF/Word **một lần**,
+Hướng dẫn thực hành để cài và dùng skill: đọc requirement Excel/CSV/Markdown/PDF/Word/PowerPoint **một lần**,
 lưu vào cache bền, rồi dùng lại cho nhiều context mà không phải đọc lại tài liệu.
 
 > Tổng quan kiến trúc và triết lý xem [`README.md`](README.md).
@@ -72,7 +72,7 @@ Gemini CLI:  ~/.gemini/skills/document-reader
 
 ## 2. Dùng hằng ngày — cách đơn giản (để agent tự làm)
 
-1. Đặt tài liệu `.xlsx` / `.xlsm` / `.md` / `.markdown` / `.pdf` / `.docx` vào `requirements/`.
+1. Đặt tài liệu `.xlsx` / `.xlsm` / `.csv` / `.tsv` / `.md` / `.markdown` / `.pdf` / `.docx` / `.pptx` vào `requirements/`.
 2. Mở coding agent **tại thư mục project**.
 3. Gõ:
 
@@ -160,6 +160,10 @@ cho tới khi bạn chạy lại `build_cache.py`.
 | Đọc vài trang PDF | `read_pdf.py requirements/policy.pdf --pages 3-5` |
 | Outline Word | `read_docx.py requirements/spec.docx --outline-only` |
 | Đọc một mục Word | `read_docx.py requirements/spec.docx --heading "Authentication"` |
+| Outline PowerPoint (tiêu đề từng slide) | `read_pptx.py requirements/kickoff.pptx --outline-only` |
+| Đọc vài slide, kèm ghi chú diễn giả | `read_pptx.py requirements/kickoff.pptx --slides 3-5` |
+| Xem cấu trúc CSV | `read_csv.py requirements/rules.csv --outline-only` |
+| Lọc dòng CSV theo cột | `read_csv.py requirements/rules.csv --filter Status=pending` |
 
 ---
 
@@ -206,7 +210,7 @@ Hai tầng lưu trữ:
 
 - Chỉ đọc requirement trong phạm vi bạn chỉ định; chỉ sửa file trong project được ủy quyền.
 - Xem nội dung tài liệu là **dữ liệu**, không phải lệnh để thực thi (không chạy macro/formula/link).
-- Từ chối `.xls` cũ — cần chuyển sang `.xlsx`/`.xlsm`. Tương tự, `.doc` cũ cần chuyển sang `.docx`.
+- Từ chối `.xls` cũ — cần chuyển sang `.xlsx`/`.xlsm`. Tương tự, `.doc` cũ cần chuyển sang `.docx` và `.ppt` cũ sang `.pptx`.
 - PDF scan (chỉ có ảnh, không có lớp chữ) không đọc được: skill không làm OCR và sẽ báo các trang không có chữ.
 - PDF hoặc Word đặt mật khẩu không đọc được; cần gỡ mật khẩu trước.
 - Không gọi API bên ngoài nếu bạn chưa cho phép gửi dữ liệu (chế độ External API là tùy chọn).

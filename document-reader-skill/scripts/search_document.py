@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Search Excel cells, Markdown lines, PDF pages or Word paragraphs and return compact cited matches."""
+"""Search a document and return compact cited matches.
+
+Excel and CSV cite cells, Markdown cites lines, PDF pages, Word paragraphs and
+PowerPoint slides.
+"""
 
 from __future__ import annotations
 
@@ -71,6 +75,41 @@ def main() -> int:
                     "text": docx_render(items[start - 1:end]),
                 })
             kind = "docx"
+        elif path.suffix.lower() == ".pptx":
+            from doc_text import pptx_render, pptx_slides
+
+            for slide in pptx_slides(path):
+                lines = pptx_render(slide).splitlines()
+                for number, line in enumerate(lines, 1):
+                    if not find(line):
+                        continue
+                    if len(matches) >= args.max_results:
+                        truncated = True
+                        break
+                    start, end = max(1, number - args.context_lines), min(len(lines), number + args.context_lines)
+                    matches.append({
+                        "slide": slide["slide"], "title": slide["title"],
+                        "line": number, "text": "\n".join(lines[start - 1:end]),
+                    })
+                if truncated:
+                    break
+            kind = "pptx"
+        elif path.suffix.lower() in {".csv", ".tsv"}:
+            from cache_common import column_letter
+            from csv_text import csv_rows
+
+            _, rows = csv_rows(path)
+            for number, cells in rows:
+                for index, value in enumerate(cells, 1):
+                    if not find(value):
+                        continue
+                    if len(matches) >= args.max_results:
+                        truncated = True
+                        break
+                    matches.append({"row": number, "cell": f"{column_letter(index)}{number}", "value": value})
+                if truncated:
+                    break
+            kind = "csv"
         else:
             from openpyxl import load_workbook
 

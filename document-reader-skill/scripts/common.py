@@ -15,6 +15,9 @@ DOCUMENT_TYPES = {
     ".xlsm": "excel",
     ".pdf": "pdf",
     ".docx": "docx",
+    ".pptx": "pptx",
+    ".csv": "csv",
+    ".tsv": "csv",
 }
 
 
