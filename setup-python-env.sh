@@ -34,7 +34,7 @@ echo "Creating virtual environment at $VENV_PATH..."
 
 PYTHON="$VENV_PATH/bin/python"
 echo "Installing document-reader dependencies..."
-"$UV" pip install --python "$PYTHON" openpyxl
+"$UV" pip install --python "$PYTHON" openpyxl pypdf
 
-"$PYTHON" -c "import openpyxl, sys; print(sys.version); print('openpyxl', openpyxl.__version__)"
+"$PYTHON" -c "import openpyxl, pypdf, sys; print(sys.version); print('openpyxl', openpyxl.__version__); print('pypdf', pypdf.__version__)"
 echo "Document Reader Python environment is ready: $PYTHON"

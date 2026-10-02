@@ -34,15 +34,21 @@ def main() -> int:
             blocks = [{"kind": "match", "source": source_ref(payload), "data": item} for item in payload["matches"]]
         elif payload.get("type") == "excel" and "rows" in payload:
             blocks = [{"kind": "table", "source": source_ref(payload), "data": {"headers": payload.get("headers", []), "rows": payload["rows"]}}]
-        elif payload.get("type") == "markdown" and "content" in payload:
+        elif payload.get("type") in {"markdown", "pdf", "docx"} and "content" in payload:
             blocks = [{"kind": "text", "source": source_ref(payload), "data": payload["content"]}]
         elif "sheets" in payload or "outline" in payload:
             blocks = [{"kind": "structure", "source": source_ref(payload), "data": payload.get("sheets", payload.get("outline"))}]
+        elif payload.get("type") == "pdf" and "pages" in payload:
+            data = {"page_count": payload.get("page_count"), "pages": payload["pages"], "bookmarks": payload.get("bookmarks", [])}
+            blocks = [{"kind": "structure", "source": source_ref(payload), "data": data}]
         else:
             raise ValueError("Unrecognized reader output")
         warnings = []
         if payload.get("truncated"):
             warnings.append("Output was truncated by a configured safety limit.")
+        if payload.get("pages_without_text"):
+            pages = ", ".join(str(page) for page in payload["pages_without_text"])
+            warnings.append(f"No text could be extracted from page(s) {pages}; they may be scanned images.")
         emit({
             "schema_version": "1.0", "query": args.query,
             "documents": [{"path": payload.get("document", ""), "type": payload.get("type", "unknown")}],

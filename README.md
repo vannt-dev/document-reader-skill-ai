@@ -51,7 +51,7 @@ sh setup-python-env.sh
 ```
 
 Hai bootstrap dùng `uv` để tự cài Python 3.12, tạo venv trung lập tại
-`~/.document-reader/venv` và cài `openpyxl`.
+`~/.document-reader/venv` và cài `openpyxl`, `pypdf`.
 
 Xem [`document-reader-skill/SKILL.md`](document-reader-skill/SKILL.md) để biết
 workflow và [`document-reader-skill/README.md`](document-reader-skill/README.md)

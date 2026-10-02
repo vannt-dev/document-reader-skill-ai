@@ -32,6 +32,46 @@ def extract_markdown(path: Path) -> list[dict]:
     return blocks
 
 
+def extract_pdf(path: Path) -> list[dict]:
+    from doc_text import open_pdf, pdf_page_text
+
+    reader = open_pdf(path)
+    blocks = []
+    for number in range(1, len(reader.pages) + 1):
+        text = pdf_page_text(reader, number)
+        if not text:
+            continue
+        blocks.append({
+            "block_id": f"page-{number}",
+            "ref": {"page": number},
+            "label": f"Page {number}",
+            "content": {"text": text},
+        })
+    if not blocks:
+        raise ValueError("No extractable text; a scanned PDF needs OCR before it can be read")
+    return blocks
+
+
+def extract_docx(path: Path) -> list[dict]:
+    from doc_text import docx_items, docx_render, docx_sections
+
+    items = docx_items(path)
+    blocks = []
+    for section in docx_sections(items):
+        title = section["title"] or "(preamble)"
+        blocks.append({
+            "block_id": f"{slugify(title)}@P{section['start']}-{section['end']}",
+            "ref": {
+                "heading": section["title"],
+                "level": section["level"],
+                "paragraphs": [section["start"], section["end"]],
+            },
+            "label": title,
+            "content": {"text": docx_render(items[section["start"] - 1:section["end"]])},
+        })
+    return blocks
+
+
 def extract_excel(path: Path, window: int) -> list[dict]:
     from openpyxl import load_workbook
 
@@ -105,6 +145,10 @@ def build(manifest_path: Path, cache_dir: Path, window: int, force: bool = False
             source = root / rel
             if doc_type == "markdown":
                 cache_payload["blocks"] = extract_markdown(source)
+            elif doc_type == "pdf":
+                cache_payload["blocks"] = extract_pdf(source)
+            elif doc_type == "docx":
+                cache_payload["blocks"] = extract_docx(source)
             else:
                 cache_payload["blocks"] = extract_excel(source, window)
         except Exception as exc:  # noqa: BLE001 - record, do not abort the whole build
