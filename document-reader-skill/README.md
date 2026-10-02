@@ -187,6 +187,7 @@ Copy nguyên thư mục `document-reader-skill` vào vị trí tương ứng, đ
 - Python 3.10+
 - `openpyxl` cho `.xlsx` và `.xlsm`
 - `pypdf` cho `.pdf`
+- `pdfplumber` (tùy chọn) để trích bảng trong PDF bằng `read_pdf.py --tables`
 
 ```bash
 python -m pip install openpyxl pypdf

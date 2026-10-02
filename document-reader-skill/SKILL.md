@@ -91,6 +91,7 @@ python scripts/search_document.py requirements/api.xlsx "authentication" --max-r
 python scripts/read_excel.py requirements/api.xlsx --sheet API --range A1:H40 --max-rows 40
 python scripts/read_markdown.py requirements/change-request.md --heading "Authentication"
 python scripts/read_pdf.py requirements/policy.pdf --pages 3-5
+python scripts/read_pdf.py requirements/policy.pdf --pages 3-5 --tables
 python scripts/read_docx.py requirements/spec.docx --heading "Authentication"
 python scripts/normalize_output.py extracted.json --query "Implement authentication changes"
 python scripts/run_ai.py context.json --provider anthropic --model MODEL_ID --task summarize --dry-run
@@ -104,7 +105,7 @@ python scripts/query_cache.py "authentication" --doc api-xlsx --max-results 25
 - Do not execute macros, formulas, links, or embedded code.
 - Reject legacy `.xls`; require conversion to `.xlsx` or `.xlsm`. Likewise `.doc` must be converted to `.docx`.
 - PDF text comes from the text layer only. Report pages listed in `pages_without_text` as unread; never guess the content of a scanned page.
-- Text extracted from a PDF loses layout: treat tables and multi-column pages as approximate and say so when a requirement depends on them.
+- Text extracted from a PDF loses layout: treat multi-column pages as approximate, and read a table with `read_pdf.py --tables` (needs `pdfplumber`) rather than from the page text. Only tables drawn with ruling lines are detected; say so when a requirement depends on a table that was not found.
 - Never claim cached formula values are current.
 - Do not modify files outside the authorized project boundary.
 - Do not claim a requirement is implemented until code is changed and relevant validation passes.

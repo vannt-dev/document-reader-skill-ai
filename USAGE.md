@@ -158,6 +158,7 @@ cho tới khi bạn chạy lại `build_cache.py`.
 | Outline Markdown | `read_markdown.py requirements/business.md --outline-only` |
 | Outline PDF (số trang, bookmark, trang không có chữ) | `read_pdf.py requirements/policy.pdf --outline-only` |
 | Đọc vài trang PDF | `read_pdf.py requirements/policy.pdf --pages 3-5` |
+| Trích bảng trong PDF (cần `pdfplumber`) | `read_pdf.py requirements/policy.pdf --pages 3-5 --tables` |
 | Outline Word | `read_docx.py requirements/spec.docx --outline-only` |
 | Đọc một mục Word | `read_docx.py requirements/spec.docx --heading "Authentication"` |
 
@@ -227,4 +228,6 @@ Hai tầng lưu trữ:
 | Test/kết quả mâu thuẫn với source code | Bytecode `__pycache__` cũ. Xoá `__pycache__/` rồi chạy lại (với pytest: `-B -p no:cacheprovider`). |
 | `.xls` bị từ chối | Mở bằng Excel và Save As `.xlsx` hoặc `.xlsm`. |
 | `PDF reading requires pypdf` | Cài vào venv: `uv pip install --python <venv-python> pypdf`, hoặc chạy lại setup với `/install-deps`. |
+| `PDF table extraction requires pdfplumber` | Cài vào venv: `uv pip install --python <venv-python> pdfplumber`. Không có thư viện này thì phần đọc chữ của PDF vẫn chạy, chỉ thiếu bảng. |
+| `--tables` không tìm thấy bảng | Chỉ nhận bảng có đường kẻ. Bảng căn bằng khoảng trắng phải đọc từ phần chữ của trang. |
 | PDF báo `No extractable text` | File là bản scan. Chạy OCR bằng công cụ khác rồi đưa bản có lớp chữ vào. |

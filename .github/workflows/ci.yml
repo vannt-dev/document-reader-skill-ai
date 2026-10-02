@@ -28,7 +28,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Install dependencies
-        run: python -m pip install openpyxl pypdf pytest
+        run: python -m pip install openpyxl pypdf pdfplumber pytest
       - name: Run tests
         working-directory: document-reader-skill
         run: python -B -m pytest tests -p no:cacheprovider -v
