@@ -159,6 +159,9 @@ cho tới khi bạn chạy lại `build_cache.py`.
 | Outline PDF (số trang, bookmark, trang không có chữ) | `read_pdf.py requirements/policy.pdf --outline-only` |
 | Đọc vài trang PDF | `read_pdf.py requirements/policy.pdf --pages 3-5` |
 | Trích bảng trong PDF (cần `pdfplumber`) | `read_pdf.py requirements/policy.pdf --pages 3-5 --tables` |
+| Đọc trang PDF scan bằng OCR (cần Tesseract) | `read_pdf.py requirements/hop-dong-scan.pdf --pages 2-4 --ocr` |
+| Đưa trang scan vào cache | `build_cache.py --manifest .document-reader/manifest.json --ocr` |
+| Đọc chữ trong một ảnh (cần Tesseract) | `read_image.py requirements/man-hinh-dang-nhap.png` |
 | Outline Word | `read_docx.py requirements/spec.docx --outline-only` |
 | Đọc một mục Word | `read_docx.py requirements/spec.docx --heading "Authentication"` |
 | Outline PowerPoint (tiêu đề từng slide) | `read_pptx.py requirements/kickoff.pptx --outline-only` |
@@ -234,4 +237,8 @@ Hai tầng lưu trữ:
 | `PDF reading requires pypdf` | Cài vào venv: `uv pip install --python <venv-python> pypdf`, hoặc chạy lại setup với `/install-deps`. |
 | `PDF table extraction requires pdfplumber` | Cài vào venv: `uv pip install --python <venv-python> pdfplumber`. Không có thư viện này thì phần đọc chữ của PDF vẫn chạy, chỉ thiếu bảng. |
 | `--tables` không tìm thấy bảng | Chỉ nhận bảng có đường kẻ. Bảng căn bằng khoảng trắng phải đọc từ phần chữ của trang. |
-| PDF báo `No extractable text` | File là bản scan. Chạy OCR bằng công cụ khác rồi đưa bản có lớp chữ vào. |
+| PDF báo `No extractable text` | File là bản scan. Cài OCR (`setup-ocr.ps1` hoặc `setup-ocr.sh`) rồi chạy `build_cache.py --ocr`, hoặc đọc trực tiếp bằng `read_pdf.py --ocr`. |
+| `OCR requires Tesseract` | Máy chưa có Tesseract. Windows: `powershell -ExecutionPolicy Bypass -File .\setup-ocr.ps1`; Linux/macOS: cài `tesseract` bằng trình quản lý gói rồi chạy `sh setup-ocr.sh`. |
+| `Tesseract has no language data for ...` | Thiếu dữ liệu ngôn ngữ đó. Chạy lại setup kèm mã ngôn ngữ: `setup-ocr.ps1 -Languages vie,eng,jpn` hoặc `sh setup-ocr.sh vie eng jpn`. |
+| `OCR of a PDF page requires pypdfium2 and Pillow` | Cài vào venv: `uv pip install --python <venv-python> pdfplumber` (kéo theo cả hai). |
+| OCR ra chữ sai nhiều | Thử `--ocr-dpi 200` hoặc `400`; kiểm tra đúng ngôn ngữ (`--ocr-lang`). Bản scan mờ, nghiêng hoặc chữ viết tay thì Tesseract đọc kém. |

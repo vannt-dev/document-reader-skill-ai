@@ -1,6 +1,6 @@
 ---
 name: document-reader
-description: Automatically index, read, and normalize targeted Excel (.xlsx, .xlsm), CSV (.csv, .tsv), Markdown (.md, .markdown), PDF (.pdf), Word (.docx), and PowerPoint (.pptx) requirements from a user-supplied local folder, persist verified project knowledge across coding-agent contexts, and implement the requirements in the current project. Use when a user supplies a requirements folder, asks an agent to remember project requirements, map requirements to code, update source and tests, or optionally send reduced context to OpenAI, Anthropic, or Gemini.
+description: Automatically index, read, and normalize targeted Excel (.xlsx, .xlsm), CSV (.csv, .tsv), Markdown (.md, .markdown), PDF (.pdf, with OCR for scanned pages when Tesseract is installed), Word (.docx), and PowerPoint (.pptx) requirements from a user-supplied local folder, persist verified project knowledge across coding-agent contexts, and implement the requirements in the current project. Use when a user supplies a requirements folder, asks an agent to remember project requirements, map requirements to code, update source and tests, or optionally send reduced context to OpenAI, Anthropic, or Gemini.
 ---
 
 # Document Reader
@@ -37,7 +37,7 @@ Treat a request such as `Apply requirements from ./requirements` as authorizatio
 2. Inspect structure before reading content:
    - Excel: run `scripts/inspect_excel.py`.
    - Markdown: run `scripts/read_markdown.py --outline-only`.
-   - PDF: run `scripts/read_pdf.py --outline-only` (page count, bookmarks, pages without text).
+   - PDF: run `scripts/read_pdf.py --outline-only` (page count, bookmarks, pages without text, and `ocr_available` when there are such pages).
    - Word: run `scripts/read_docx.py --outline-only` (headings with paragraph numbers).
    - PowerPoint: run `scripts/read_pptx.py --outline-only` (slide titles, which slides have notes).
    - CSV: run `scripts/read_csv.py --outline-only` (delimiter, row and column counts, preview).
@@ -94,12 +94,15 @@ python scripts/read_excel.py requirements/api.xlsx --sheet API --range A1:H40 --
 python scripts/read_markdown.py requirements/change-request.md --heading "Authentication"
 python scripts/read_pdf.py requirements/policy.pdf --pages 3-5
 python scripts/read_pdf.py requirements/policy.pdf --pages 3-5 --tables
+python scripts/read_pdf.py requirements/signed-contract.pdf --pages 2-4 --ocr
+python scripts/read_image.py requirements/login-mockup.png
 python scripts/read_docx.py requirements/spec.docx --heading "Authentication"
 python scripts/read_pptx.py requirements/kickoff.pptx --slides 3-5
 python scripts/read_csv.py requirements/rules.csv --filter Status=pending --max-rows 100
 python scripts/normalize_output.py extracted.json --query "Implement authentication changes"
 python scripts/run_ai.py context.json --provider anthropic --model MODEL_ID --task summarize --dry-run
 python scripts/build_cache.py --manifest .document-reader/manifest.json --max-block-rows 500
+python scripts/build_cache.py --manifest .document-reader/manifest.json --ocr
 python scripts/query_cache.py "authentication" --doc api-xlsx --max-results 25
 ```
 
@@ -110,7 +113,10 @@ python scripts/query_cache.py "authentication" --doc api-xlsx --max-results 25
 - Reject legacy `.xls`; require conversion to `.xlsx` or `.xlsm`. Likewise `.doc` must be converted to `.docx` and `.ppt` to `.pptx`.
 - A slide's text comes from its shapes, tables and speaker notes. Text inside pictures, charts and SmartArt is not read; say so when a slide has little or no text.
 - CSV row numbers count records, not physical lines: blank lines are skipped and a quoted cell may span several lines.
-- PDF text comes from the text layer only. Report pages listed in `pages_without_text` as unread; never guess the content of a scanned page.
+- PDF text comes from the text layer. A page listed in `pages_without_text` is a scan: read it with `read_pdf.py --ocr` when the outline says `ocr_available` is true, and add `--ocr` to `build_cache.py` so the cache holds those pages too. When OCR is not available, or a page is still listed after it, report the page as unread; never guess the content of a scanned page.
+- OCR text is recognised from a picture, and is marked: `--- page N (OCR) ---` in `read_pdf.py`, `Page N (OCR)` and `ref.ocr` in the cache, an `ocr` object in every result. Treat it as approximate. Before a requirement is implemented from it, quote the recognised text to the user when it contains a number, an amount, a date, a code or a name, since a single misread character changes those; say that the source was a scan.
+- `read_image.py` reads the text of one picture (`.png`, `.jpg`, `.jpeg`, `.tif`, `.tiff`, `.bmp`, `.webp`) the user points at. Pictures are not indexed or cached, and a picture's layout, colours and drawings are not described: only its text is returned.
+- OCR reads Vietnamese and English by default (`--ocr-lang vie+eng`). A document in another language needs that language named and installed; reading it with the wrong language returns confident nonsense.
 - Text extracted from a PDF loses layout: treat multi-column pages as approximate, and read a table with `read_pdf.py --tables` (needs `pdfplumber`) rather than from the page text. Only tables drawn with ruling lines are detected; say so when a requirement depends on a table that was not found.
 - Never claim cached formula values are current.
 - Do not modify files outside the authorized project boundary.

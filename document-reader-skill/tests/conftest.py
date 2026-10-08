@@ -222,6 +222,41 @@ def sample_csv(tmp_path):
     return path
 
 
+def write_raw_pdf(path, streams):
+    """Write a PDF whose pages are the given content streams."""
+    objects = {3: "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"}
+    kids = []
+    next_id = 4
+    for stream in streams:
+        page_id, content_id = next_id, next_id + 1
+        next_id += 2
+        kids.append(page_id)
+        objects[page_id] = (
+            "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] "
+            f"/Resources << /Font << /F1 3 0 R >> >> /Contents {content_id} 0 R >>"
+        )
+        objects[content_id] = f"<< /Length {len(stream)} >>\nstream\n{stream}\nendstream"
+    objects[1] = "<< /Type /Catalog /Pages 2 0 R >>"
+    objects[2] = f"<< /Type /Pages /Kids [{' '.join(f'{kid} 0 R' for kid in kids)}] /Count {len(kids)} >>"
+
+    data = b"%PDF-1.4\n"
+    offsets = {}
+    for number in sorted(objects):
+        offsets[number] = len(data)
+        data += f"{number} 0 obj\n{objects[number]}\nendobj\n".encode("latin-1")
+    xref = len(data)
+    data += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode("latin-1")
+    for number in sorted(objects):
+        data += f"{offsets[number]:010d} 00000 n \n".encode("latin-1")
+    data += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode("latin-1")
+    path.write_bytes(data)
+    return path
+
+
+def text_at(x, y, text):
+    return f"BT /F1 10 Tf {x} {y} Td ({text}) Tj ET"
+
+
 @pytest.fixture
 def manifest_for(tmp_path):
     """Build a manifest.json referencing given files, return its path."""

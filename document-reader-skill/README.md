@@ -182,12 +182,42 @@ Copy nguyên thư mục `document-reader-skill` vào vị trí tương ứng, đ
 Để agent tự kích hoạt workflow khi bạn chỉ đưa folder, thêm block trong
 `references/agents-snippet.md` để chọn đúng template native cho project.
 
+## OCR cho trang scan và ảnh
+
+PDF scan không có lớp chữ nên `read_pdf.py` liệt kê các trang đó trong
+`pages_without_text`. Khi máy có Tesseract, thêm `--ocr` để đọc chúng:
+
+```bash
+python scripts/read_pdf.py requirements/hop-dong-scan.pdf --outline-only   # có "ocr_available"
+python scripts/read_pdf.py requirements/hop-dong-scan.pdf --pages 2-4 --ocr
+python scripts/build_cache.py --manifest .document-reader/manifest.json --ocr
+python scripts/read_image.py requirements/man-hinh-dang-nhap.png
+```
+
+- Chỉ những trang không có lớp chữ mới qua OCR; trang có chữ vẫn đọc như cũ.
+- Chữ nhận dạng được đánh dấu: `--- page N (OCR) ---` trong kết quả đọc,
+  `Page N (OCR)` và `ref.ocr` trong cache, kèm mục `ocr` ghi engine và ngôn ngữ.
+  OCR có thể đọc sai ký tự (nhất là số, dấu tiếng Việt), nên coi đó là bản gần đúng.
+- Mặc định đọc tiếng Việt và tiếng Anh. Ngôn ngữ khác: `--ocr-lang jpn+eng`, sau
+  khi đã tải dữ liệu ngôn ngữ đó (`setup-ocr.ps1 -Languages jpn,eng`).
+- `--ocr-dpi` (72–600, mặc định 300) là độ phân giải khi dựng trang thành ảnh.
+- Ảnh không được index hay cache; `read_image.py` chỉ trả về chữ trong ảnh, không
+  mô tả bố cục hay hình vẽ.
+
+Biến môi trường (đều không bắt buộc): `DOCUMENT_READER_TESSERACT` (đường dẫn tới
+chương trình `tesseract`), `DOCUMENT_READER_TESSDATA` (thư mục dữ liệu ngôn ngữ; mặc
+định là `~/.document-reader/tessdata` nếu có), `DOCUMENT_READER_OCR_LANG` (ngôn ngữ
+mặc định, ví dụ `vie+eng`).
+
 ## Yêu cầu runtime
 
 - Python 3.10+
 - `openpyxl` cho `.xlsx` và `.xlsm`
 - `pypdf` cho `.pdf`
 - `pdfplumber` (tùy chọn) để trích bảng trong PDF bằng `read_pdf.py --tables`
+- Tesseract (tùy chọn) để đọc trang PDF scan và ảnh bằng OCR: `read_pdf.py --ocr`,
+  `build_cache.py --ocr`, `read_image.py`. Cài bằng `setup-ocr.ps1` (Windows) hoặc
+  `setup-ocr.sh` (Linux/macOS) ở thư mục gốc của repo; xem mục "OCR" bên dưới.
 
 ```bash
 python -m pip install openpyxl pypdf

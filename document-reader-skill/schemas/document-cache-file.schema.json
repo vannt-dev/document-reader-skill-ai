@@ -11,6 +11,12 @@
     "sha256": { "type": "string" },
     "type": { "enum": ["excel", "markdown", "pdf", "docx", "pptx", "csv", "unknown"] },
     "error": { "type": "string" },
+    "ocr": {
+      "type": "object",
+      "description": "Present when the PDF was cached with OCR on; pages read that way carry ref.ocr.",
+      "required": ["languages"],
+      "properties": { "languages": { "type": "string" } }
+    },
     "blocks": {
       "type": "array",
       "items": {
