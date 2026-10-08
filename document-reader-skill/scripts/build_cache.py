@@ -32,23 +32,44 @@ def extract_markdown(path: Path) -> list[dict]:
     return blocks
 
 
-def extract_pdf(path: Path) -> list[dict]:
+def extract_pdf(path: Path, ocr_languages: str | None = None) -> list[dict]:
+    """One block per page that has text.
+
+    With `ocr_languages`, a page without a text layer is read with OCR and its
+    block says so, in its label and in `ref.ocr`.
+    """
     from doc_text import open_pdf, pdf_page_text
 
     reader = open_pdf(path)
+    texts = {number: pdf_page_text(reader, number) for number in range(1, len(reader.pages) + 1)}
+    recognised: dict[int, str] = {}
+    scanned = [number for number, text in texts.items() if not text]
+    if ocr_languages and scanned:
+        import ocr
+
+        recognised = ocr.pdf_pages_text(path, scanned, ocr_languages)
     blocks = []
-    for number in range(1, len(reader.pages) + 1):
-        text = pdf_page_text(reader, number)
-        if not text:
-            continue
-        blocks.append({
-            "block_id": f"page-{number}",
-            "ref": {"page": number},
-            "label": f"Page {number}",
-            "content": {"text": text},
-        })
+    for number, text in texts.items():
+        if text:
+            blocks.append({
+                "block_id": f"page-{number}",
+                "ref": {"page": number},
+                "label": f"Page {number}",
+                "content": {"text": text},
+            })
+        elif recognised.get(number):
+            blocks.append({
+                "block_id": f"page-{number}",
+                "ref": {"page": number, "ocr": True},
+                "label": f"Page {number} (OCR)",
+                "content": {"text": recognised[number]},
+            })
     if not blocks:
-        raise ValueError("No extractable text; a scanned PDF needs OCR before it can be read")
+        if ocr_languages:
+            raise ValueError("No extractable text, and OCR recognised none either")
+        raise ValueError(
+            "No extractable text; a scanned PDF needs OCR before it can be read (build_cache.py --ocr)"
+        )
     return blocks + pdf_table_blocks(path)
 
 
@@ -192,7 +213,16 @@ def extract_excel(path: Path, window: int) -> list[dict]:
     return blocks
 
 
-def build(manifest_path: Path, cache_dir: Path, window: int, force: bool = False) -> dict:
+def build(
+    manifest_path: Path, cache_dir: Path, window: int, force: bool = False,
+    ocr_languages: str | None = None,
+) -> dict:
+    """Write one cache file per document of the manifest, and the index of them.
+
+    `ocr_languages` turns OCR on for PDF pages without a text layer. A PDF
+    cached earlier without it is read again, since its cache may be missing
+    exactly those pages.
+    """
     manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
     root = Path(manifest["requirements_root"])
     cache_subdir = cache_dir / "cache"
@@ -216,7 +246,8 @@ def build(manifest_path: Path, cache_dir: Path, window: int, force: bool = False
 
         if not force and cache_file.is_file():
             existing = json.loads(cache_file.read_text(encoding="utf-8"))
-            if existing.get("sha256") == sha256:
+            wants_ocr = bool(ocr_languages) and doc_type == "pdf" and "ocr" not in existing
+            if existing.get("sha256") == sha256 and not wants_ocr:
                 documents.append(_index_entry(existing))
                 continue
 
@@ -226,7 +257,11 @@ def build(manifest_path: Path, cache_dir: Path, window: int, force: bool = False
             if doc_type == "markdown":
                 cache_payload["blocks"] = extract_markdown(source)
             elif doc_type == "pdf":
-                cache_payload["blocks"] = extract_pdf(source)
+                if ocr_languages:
+                    # Recorded even when no page needed it: it is what says this
+                    # file has already been through OCR.
+                    cache_payload["ocr"] = {"languages": ocr_languages}
+                cache_payload["blocks"] = extract_pdf(source, ocr_languages)
             elif doc_type == "docx":
                 cache_payload["blocks"] = extract_docx(source)
             elif doc_type == "pptx":
@@ -275,6 +310,8 @@ def main() -> int:
     parser.add_argument("--cache-dir", default=".document-reader")
     parser.add_argument("--max-block-rows", type=int, default=500)
     parser.add_argument("--force", action="store_true")
+    parser.add_argument("--ocr", action="store_true", help="Read PDF pages that have no text layer with Tesseract")
+    parser.add_argument("--ocr-lang", help="Languages for --ocr, such as vie+eng (default: Vietnamese and English)")
     parser.add_argument("--share", choices=["local", "commit"], help="Set cache share scope and adjust .gitignore")
     add_output_argument(parser)
     args = parser.parse_args()
@@ -284,7 +321,14 @@ def main() -> int:
         manifest_path = Path(args.manifest)
         if not manifest_path.is_file():
             raise FileNotFoundError(f"Manifest not found: {manifest_path}; run index_documents.py first")
-        index = build(manifest_path, Path(args.cache_dir), args.max_block_rows, args.force)
+        ocr_languages = None
+        if args.ocr:
+            import ocr
+
+            # Checked once, up front: a missing program or language is a reason
+            # to stop, not an error to record against every PDF.
+            ocr_languages = ocr.resolve_languages(args.ocr_lang)
+        index = build(manifest_path, Path(args.cache_dir), args.max_block_rows, args.force, ocr_languages)
         if args.share:
             cache_dir = Path(args.cache_dir)
             cache_config.write_config(cache_dir, args.share)

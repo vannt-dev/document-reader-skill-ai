@@ -53,6 +53,24 @@ sh setup-python-env.sh
 Hai bootstrap dùng `uv` để tự cài Python 3.12, tạo venv trung lập tại
 `~/.document-reader/venv` và cài `openpyxl`, `pypdf`.
 
+### OCR cho PDF scan và ảnh (tùy chọn)
+
+Trang PDF scan và ảnh chụp không có lớp chữ. Để skill đọc được chúng bằng
+Tesseract:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\setup-ocr.ps1
+```
+
+```bash
+sh setup-ocr.sh
+```
+
+Trên Windows script cài Tesseract bằng `winget` nếu máy chưa có (Windows sẽ hỏi
+quyền); trên Linux/macOS bạn tự cài `tesseract` bằng trình quản lý gói trước. Cả
+hai script tải dữ liệu tiếng Việt và tiếng Anh vào `~/.document-reader/tessdata`.
+Không chạy bước này thì mọi thứ khác vẫn hoạt động; trang scan được báo là chưa đọc.
+
 Xem [`document-reader-skill/SKILL.md`](document-reader-skill/SKILL.md) để biết
 workflow và [`document-reader-skill/README.md`](document-reader-skill/README.md)
 để cài đặt, sử dụng.

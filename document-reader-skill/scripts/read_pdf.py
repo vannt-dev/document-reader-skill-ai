@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Read a PDF's page outline, the text of a bounded page range, or its tables."""
+"""Read a PDF's page outline, the text of a bounded page range, or its tables.
+
+A page without a text layer (a scan) is read with OCR when --ocr is given.
+"""
 
 from __future__ import annotations
 
@@ -33,31 +36,57 @@ def outline(path: Path, max_bookmarks: int = 200) -> dict:
     page_count = len(reader.pages)
     pages = [{"page": number, "chars": len(pdf_page_text(reader, number))} for number in range(1, page_count + 1)]
     bookmarks, truncated = pdf_bookmarks(reader, max_bookmarks)
-    return {
+    result = {
         "document": str(path), "type": "pdf", "page_count": page_count,
         "pages": pages,
         "pages_without_text": [page["page"] for page in pages if page["chars"] == 0],
         "bookmarks": bookmarks, "bookmarks_truncated": truncated,
     }
+    if result["pages_without_text"]:
+        import ocr
+
+        # Whether reading those pages again with --ocr can work on this machine.
+        result["ocr_available"] = ocr.available()
+    return result
 
 
-def read(path: Path, pages: str | None, max_chars: int) -> dict:
+def read(
+    path: Path, pages: str | None, max_chars: int,
+    use_ocr: bool = False, ocr_lang: str | None = None, ocr_dpi: int | None = None,
+) -> dict:
     reader = open_pdf(path)
     start, end = parse_pages(pages, len(reader.pages))
+    texts = {number: pdf_page_text(reader, number) for number in range(start, end + 1)}
+    recognised: dict[int, str] = {}
+    info = None
+    if use_ocr:
+        import ocr
+
+        scanned = [number for number, text in texts.items() if not text]
+        if scanned:
+            languages = ocr.resolve_languages(ocr_lang)
+            recognised = ocr.pdf_pages_text(path, scanned, languages, ocr_dpi or ocr.DEFAULT_DPI)
+            info = ocr.describe(languages, [number for number in scanned if recognised.get(number)])
     parts, empty = [], []
-    for number in range(start, end + 1):
-        text = pdf_page_text(reader, number)
+    for number, text in texts.items():
         if text:
             parts.append(f"--- page {number} ---\n{text}")
+        elif recognised.get(number):
+            # Marked, so a reader knows this text was recognised from a picture
+            # and may hold misread characters.
+            parts.append(f"--- page {number} (OCR) ---\n{recognised[number]}")
         else:
             empty.append(number)
     content = "\n\n".join(parts)
-    return {
+    result = {
         "document": str(path), "type": "pdf",
         "source": {"start_page": start, "end_page": end},
         "content": content[:max_chars], "truncated": len(content) > max_chars,
         "pages_without_text": empty,
     }
+    if info is not None:
+        result["ocr"] = info
+    return result
 
 
 def tables(path: Path, pages: str | None, max_rows: int) -> dict:
@@ -89,18 +118,23 @@ def main() -> int:
     parser.add_argument("--tables", action="store_true", help="Return the tables on the pages instead of their text")
     parser.add_argument("--max-rows", type=int, default=100, help="Row limit per table, with --tables")
     parser.add_argument("--max-chars", type=int, default=12000)
+    parser.add_argument("--ocr", action="store_true", help="Read pages that have no text layer with Tesseract")
+    parser.add_argument("--ocr-lang", help="Languages for --ocr, such as vie+eng (default: Vietnamese and English)")
+    parser.add_argument("--ocr-dpi", type=int, help="Resolution a page is rendered at for --ocr (default: 300)")
     add_output_argument(parser)
     args = parser.parse_args()
     try:
         path = require_path(args.document, {".pdf"})
         if args.max_chars < 1 or args.max_rows < 1:
             raise ValueError("max-chars and max-rows must be positive")
+        if args.ocr_dpi is not None and not 72 <= args.ocr_dpi <= 600:
+            raise ValueError("ocr-dpi must be between 72 and 600")
         if args.outline_only:
             emit(outline(path), args.output)
         elif args.tables:
             emit(tables(path, args.pages, args.max_rows), args.output)
         else:
-            emit(read(path, args.pages, args.max_chars), args.output)
+            emit(read(path, args.pages, args.max_chars, args.ocr, args.ocr_lang, args.ocr_dpi), args.output)
         return 0
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)
