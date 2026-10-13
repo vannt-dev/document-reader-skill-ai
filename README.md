@@ -92,3 +92,7 @@ chmod +x setup-document-reader.sh
 ```
 
 Script POSIX hỗ trợ Linux và macOS, thực hiện cùng workflow với bản Windows.
+
+## Giấy phép
+
+Phát hành theo giấy phép MIT. Xem [LICENSE](LICENSE).
