@@ -91,6 +91,66 @@ def query(cache_dir, keyword=None, doc=None, block_id=None, label=None, max_resu
     return _envelope(keyword, doc, block_id, label, results, truncated, warnings)
 
 
+def changes(cache_dir, doc=None, max_results=50) -> dict:
+    """What changed in each document since the version cached before it.
+
+    With `doc`, that document is always reported, with status "changed",
+    "no_previous_version" or "stale". Without it, only documents that have a
+    change report, or are stale, are listed. `max_results` bounds the number
+    of added, changed and removed entries returned across all documents.
+    """
+    cache_dir = Path(cache_dir)
+    warnings: list[str] = []
+    envelope = {"schema_version": "1.0", "query": {"changes": True, "doc": doc}, "documents": [], "truncated": False}
+    index, index_corrupt = _read_json(cache_dir / "index.json")
+    if index_corrupt or index is None:
+        warnings.append(
+            "index.json is unreadable; rebuild with build_cache.py." if index_corrupt
+            else "No index.json found; run build_cache.py first."
+        )
+        return {**envelope, "warnings": warnings}
+
+    manifest_hashes = _manifest_hashes(cache_dir)
+    budget = max_results
+    found = False
+    for document in index.get("documents", []):
+        if doc and document["doc_id"] != doc:
+            continue
+        found = True
+        entry = {"doc_id": document["doc_id"], "path": document["path"], "sha256": document.get("sha256", "")}
+        current = manifest_hashes.get(document["path"])
+        if current is not None and current != document.get("sha256"):
+            warnings.append(f"{document['doc_id']} is stale; rebuild with build_cache.py, then ask again.")
+            envelope["documents"].append({**entry, "status": "stale"})
+            continue
+        cache_payload, cache_corrupt = _read_json(cache_dir / "cache" / f"{document['doc_id']}.json")
+        if cache_corrupt or cache_payload is None:
+            warnings.append(f"cache for {document['doc_id']} is unreadable; rebuild with build_cache.py.")
+            continue
+        report = cache_payload.get("changes")
+        if report is None:
+            if doc:
+                envelope["documents"].append({**entry, "status": "no_previous_version"})
+            continue
+        entry.update({"status": "changed", "previous_sha256": report.get("previous_sha256", ""),
+                      "summary": report.get("summary", {})})
+        for name in ("changed", "added", "removed"):
+            items = report.get(name, [])
+            entry[name] = items[:budget]
+            if len(items) > budget:
+                envelope["truncated"] = True
+            budget = max(budget - len(entry[name]), 0)
+        if report.get("truncated"):
+            entry["report_truncated"] = True
+            warnings.append(
+                f"the change report of {document['doc_id']} lists only part of the changes; read the document again."
+            )
+        envelope["documents"].append(entry)
+    if doc and not found:
+        warnings.append(f"No document with doc_id {doc!r} in index.json.")
+    return {**envelope, "warnings": sorted(set(warnings))}
+
+
 def _envelope(keyword, doc, block_id, label, results, truncated, warnings) -> dict:
     return {
         "schema_version": "1.0",
@@ -109,11 +169,20 @@ def main() -> int:
     parser.add_argument("--block-id", help="Return exactly this block")
     parser.add_argument("--label", help="Case-insensitive label substring")
     parser.add_argument("--max-results", type=int, default=50)
+    parser.add_argument(
+        "--changes", action="store_true",
+        help="Report the blocks added, changed and removed since the version cached before",
+    )
     add_output_argument(parser)
     args = parser.parse_args()
     try:
         if args.max_results < 1:
             raise ValueError("max-results must be positive")
+        if args.changes:
+            if args.keyword or args.block_id or args.label:
+                raise ValueError("--changes takes only --doc and --max-results")
+            emit(changes(args.cache_dir, args.doc, args.max_results), args.output)
+            return 0
         result = query(
             args.cache_dir, args.keyword, args.doc, args.block_id, args.label, args.max_results
         )

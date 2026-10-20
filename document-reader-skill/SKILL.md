@@ -23,7 +23,7 @@ When the user supplies only a requirements folder path:
 2. Read `.document-reader/knowledge.md` when it already exists.
 3. Run `scripts/index_documents.py REQUIREMENTS_FOLDER --output .document-reader/manifest.json` from the project.
 4. Run `scripts/build_cache.py --manifest .document-reader/manifest.json` to extract full content into `.document-reader/cache/` and `.document-reader/index.json`.
-5. Compare document hashes with knowledge sources. Invalidate and re-read knowledge derived from changed files.
+5. Compare document hashes with knowledge sources. For each document in the `changed` list of the build output, run `scripts/query_cache.py --changes --doc DOC_ID` and apply only its added, changed and removed entries (see *Apply only what changed*). Re-read a changed document in full when the report cannot be trusted to cover everything (same section).
 6. Inspect and extract actionable requirements without asking the user to name individual files.
 7. Map requirements to current code, implement a coherent batch, update tests, and validate.
 8. Create or update `.document-reader/knowledge.md` using `references/project-memory-template.md`.
@@ -62,6 +62,17 @@ Use project files as durable memory; do not rely on a model remembering a previo
 - Store full normalized content once in `.document-reader/cache/<doc-id>.json` and a small catalog in `.document-reader/index.json` via `build_cache.py`.
 - At the start of a later context, load `index.json` (not the whole cache); fetch detail with `query_cache.py` instead of re-parsing source documents.
 - Rebuild only documents whose manifest hash changed; `query_cache.py` flags stale blocks and withholds their content until rebuilt.
+- After a rebuild, apply a changed document through its change report (`query_cache.py --changes`) rather than re-reading it whole.
+
+## Apply only what changed
+
+When a document's hash changes, `build_cache.py` compares the new version with the one cached before and stores a change report; its output lists those documents under `changed`, and `index.json` gives each the counts. `query_cache.py --changes --doc DOC_ID` returns the report:
+
+- Entries are keyed so that edits elsewhere do not disturb them: a requirement by its ID (a line, list item, heading or table row that starts with `REQ-12`, `FR-3.1`, `US-7` ...; `--id-pattern` on `build_cache.py` sets another form), a section by its heading path (`Checkout > Fees`), a page or slide by its label, a table row by its ID cell, else its first cell.
+- `added` and `changed` entries point at the new version: fetch the block with `query_cache.py --doc DOC_ID --block-id BLOCK_ID` when the entry's own `after`, `diff` or cells are not enough. `changed` text carries a short line `diff`; a changed row carries its cells `before` and `after`. `removed` entries carry what the old version held under `before`.
+- A section entry covers every line of that section, so it repeats the requirement entries inside it; act on the requirement entries and use the section diff for the text around them.
+- Update the code, tests and `knowledge.md` for those entries only, and record the new `sha256` for the document. Leave knowledge from unchanged entries as it is.
+- Read the whole document again instead when the status is `no_previous_version` or `stale` (rebuild first), when the report says `report_truncated`, when `diff_truncated` hides a change you need, or when `previous_sha256` is not the hash recorded in `knowledge.md`: the report then compares with a version you never applied, because the document changed more than once between builds.
 
 ## Coding Agent Mode: update the current project
 
@@ -108,6 +119,7 @@ python scripts/run_ai.py context.json --provider anthropic --model MODEL_ID --ta
 python scripts/build_cache.py --manifest .document-reader/manifest.json --max-block-rows 500
 python scripts/build_cache.py --manifest .document-reader/manifest.json --ocr
 python scripts/query_cache.py "authentication" --doc api-xlsx --max-results 25
+python scripts/query_cache.py --changes --doc api-xlsx
 ```
 
 ## Guardrails

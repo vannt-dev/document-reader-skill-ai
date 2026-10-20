@@ -5,9 +5,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
+from cache_changes import compare
 from cache_common import column_letter, doc_id_for, excel_block_ranges, markdown_sections, slugify
 from common import add_output_argument, emit, json_value
 import cache_config
@@ -259,13 +261,17 @@ def extract_excel(path: Path, window: int) -> list[dict]:
 
 def build(
     manifest_path: Path, cache_dir: Path, window: int, force: bool = False,
-    ocr_languages: str | None = None,
+    ocr_languages: str | None = None, id_pattern: str | None = None,
 ) -> dict:
     """Write one cache file per document of the manifest, and the index of them.
 
     `ocr_languages` turns OCR on for PDF pages without a text layer. A PDF
     cached earlier without it is read again, since its cache may be missing
     exactly those pages.
+
+    When a document's hash changed, its new cache file carries a `changes`
+    report against the version cached before (see cache_changes.py);
+    `id_pattern` overrides the regular expression for requirement IDs.
     """
     manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
     root = Path(manifest["requirements_root"])
@@ -288,8 +294,13 @@ def build(
         doc_type = entry.get("type", "excel")
         cache_file = cache_subdir / f"{doc_id}.json"
 
-        if not force and cache_file.is_file():
-            existing = json.loads(cache_file.read_text(encoding="utf-8"))
+        existing = None
+        if cache_file.is_file():
+            try:
+                existing = json.loads(cache_file.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                existing = None  # unreadable: rebuild it, with nothing to compare against
+        if not force and existing is not None:
             wants_ocr = bool(ocr_languages) and doc_type == "pdf" and "ocr" not in existing
             if existing.get("sha256") == sha256 and not wants_ocr:
                 documents.append(_index_entry(existing))
@@ -321,6 +332,7 @@ def build(
         except Exception as exc:  # noqa: BLE001 - record, do not abort the whole build
             cache_payload["blocks"] = []
             cache_payload["error"] = str(exc)
+        _attach_changes(existing, cache_payload, id_pattern)
 
         cache_file.write_text(
             json.dumps(cache_payload, ensure_ascii=False, indent=2, default=str) + "\n",
@@ -336,6 +348,26 @@ def build(
     return index
 
 
+def _attach_changes(existing: dict | None, cache_payload: dict, id_pattern: str | None) -> None:
+    """Compare with the version cached before, when there is one to compare with.
+
+    A rebuild of the same version (--force, --ocr) keeps the report it had, so
+    the change stays visible until the document changes again.
+    """
+    if existing is None or "error" in cache_payload:
+        return
+    if existing.get("sha256") == cache_payload["sha256"]:
+        if "changes" in existing:
+            cache_payload["changes"] = existing["changes"]
+        return
+    if "error" in existing:
+        return
+    cache_payload["changes"] = {
+        "previous_sha256": existing.get("sha256", ""),
+        **compare(existing.get("blocks", []), cache_payload["blocks"], id_pattern),
+    }
+
+
 def _index_entry(cache_payload: dict) -> dict:
     entry = {
         "doc_id": cache_payload["doc_id"],
@@ -349,7 +381,18 @@ def _index_entry(cache_payload: dict) -> dict:
     }
     if "error" in cache_payload:
         entry["error"] = cache_payload["error"]
+    if "changes" in cache_payload:
+        changes = cache_payload["changes"]
+        entry["changes"] = {"previous_sha256": changes["previous_sha256"], **changes["summary"]}
     return entry
+
+
+def _cached_hashes(cache_dir: Path) -> dict[str, str]:
+    try:
+        index = json.loads((cache_dir / "index.json").read_text(encoding="utf-8"))
+        return {d["doc_id"]: d.get("sha256", "") for d in index.get("documents", [])}
+    except (OSError, ValueError, KeyError, AttributeError):
+        return {}
 
 
 def main() -> int:
@@ -360,6 +403,10 @@ def main() -> int:
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--ocr", action="store_true", help="Read PDF pages that have no text layer with Tesseract")
     parser.add_argument("--ocr-lang", help="Languages for --ocr, such as vie+eng (default: Vietnamese and English)")
+    parser.add_argument(
+        "--id-pattern",
+        help="Regular expression for requirement IDs in change reports (default: REQ-12, FR-3.1 style)",
+    )
     parser.add_argument("--share", choices=["local", "commit"], help="Set cache share scope and adjust .gitignore")
     add_output_argument(parser)
     args = parser.parse_args()
@@ -369,6 +416,8 @@ def main() -> int:
         manifest_path = Path(args.manifest)
         if not manifest_path.is_file():
             raise FileNotFoundError(f"Manifest not found: {manifest_path}; run index_documents.py first")
+        if args.id_pattern:
+            re.compile(args.id_pattern)
         ocr_languages = None
         if args.ocr:
             import ocr
@@ -376,7 +425,10 @@ def main() -> int:
             # Checked once, up front: a missing program or language is a reason
             # to stop, not an error to record against every PDF.
             ocr_languages = ocr.resolve_languages(args.ocr_lang)
-        index = build(manifest_path, Path(args.cache_dir), args.max_block_rows, args.force, ocr_languages)
+        before = _cached_hashes(Path(args.cache_dir))
+        index = build(
+            manifest_path, Path(args.cache_dir), args.max_block_rows, args.force, ocr_languages, args.id_pattern
+        )
         if args.share:
             cache_dir = Path(args.cache_dir)
             cache_config.write_config(cache_dir, args.share)
@@ -387,6 +439,12 @@ def main() -> int:
             "cache_dir": args.cache_dir,
             "documents": len(index["documents"]),
             "errors": [d["doc_id"] for d in index["documents"] if "error" in d],
+            # Documents whose new version this build compared with the one before:
+            # `query_cache.py --changes --doc ID` shows what changed.
+            "changed": [
+                d["doc_id"] for d in index["documents"]
+                if "changes" in d and before.get(d["doc_id"]) != d["sha256"]
+            ],
         }, args.output)
         return 0
     except Exception as exc:

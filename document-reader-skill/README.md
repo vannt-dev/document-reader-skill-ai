@@ -69,6 +69,12 @@ Cấu trúc hai file được mô tả bằng JSON Schema trong `schemas/`:
 `document-cache.schema.json` cho `index.json` và `document-cache-file.schema.json`
 cho từng `cache/<doc-id>.json`.
 
+Khi một tài liệu đổi hash, `build_cache.py` so bản mới với bản đã cache trước đó
+và lưu báo cáo thay đổi; output của nó liệt kê các tài liệu đó trong `changed`.
+`query_cache.py --changes --doc <doc-id>` trả về các requirement, mục và dòng bảng
+được thêm, sửa, xóa (kèm diff ngắn hoặc giá trị ô trước/sau) để agent chỉ áp dụng
+phần đã đổi. Cache cũ chưa có báo cáo trả về `no_previous_version`.
+
 `query_cache.py` chịu lỗi cục bộ: nếu một file cache hỏng hoặc `index.json` không
 đọc được, nó báo cảnh báo và bỏ qua phần đó thay vì làm hỏng cả truy vấn.
 

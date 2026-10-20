@@ -13,7 +13,7 @@ Use this workflow when a coding agent must read requirements from a local folder
 1. Discover repository instructions and project structure.
 2. Load `.document-reader/knowledge.md` when present.
 3. Run `index_documents.py` and write `.document-reader/manifest.json`.
-4. Compare source hashes; invalidate stale knowledge before reuse.
+4. Compare source hashes; invalidate stale knowledge before reuse. For a changed document, rebuild the cache and read its change report (`query_cache.py --changes --doc DOC_ID`): invalidate and re-apply only the entries it lists, unless `SKILL.md` says to re-read the whole document.
 5. Inspect outlines, sheets, dimensions, and small previews inside the authorized boundary.
 6. Search for terms from the change objective, or discover actionable requirements when only a folder was supplied.
 7. Extract bounded sections or ranges with source references.
