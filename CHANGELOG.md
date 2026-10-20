@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-21
+
+Reads HTML pages and plain-text files, and reports what changed when a document
+is edited.
+
 ### Added
 
 - HTML pages (`.html`, `.htm`), such as Confluence or wiki exports, are read as
@@ -48,5 +53,6 @@ First tagged release of the Document Reader skill.
 - Setup scripts for Windows, Linux and macOS that install the skill for Codex,
   Claude Code and Gemini CLI.
 
-[Unreleased]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/vannt-dev/document-reader-skill-ai/releases/tag/v1.0.0
