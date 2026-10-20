@@ -145,6 +145,21 @@ Tùy chọn:
 Nếu tài liệu gốc đổi hash so với cache, kết quả sẽ gắn cờ `stale` và **giữ lại nội dung**
 cho tới khi bạn chạy lại `build_cache.py`.
 
+### 3.4. Xem tài liệu đổi gì so với bản trước
+
+Khi một tài liệu đổi hash, `build_cache.py` so bản mới với bản đã cache trước đó và liệt kê
+tài liệu ấy trong `changed`. Xem các phần được thêm, sửa, xóa:
+
+```bash
+"$PY" "$SKILL/scripts/query_cache.py" --changes --doc api-xlsx
+```
+
+Mỗi mục được nhận diện theo mã requirement (`REQ-12`, `FR-3.1` ...), theo đường dẫn heading
+(`Checkout > Fees`) hoặc theo dòng bảng, nên chèn thêm dòng ở chỗ khác không làm mọi thứ bị
+coi là "đã sửa". Agent chỉ áp dụng các mục này thay vì đọc lại cả tài liệu. Cache tạo bằng bản
+cũ của skill vẫn dùng được: lần build đầu sau khi tài liệu đổi sẽ có báo cáo, còn trước đó
+lệnh trả về `no_previous_version`.
+
 ### Bảng lệnh nhanh
 
 | Mục đích | Lệnh |
@@ -154,6 +169,7 @@ cho tới khi bạn chạy lại `build_cache.py`.
 | Query theo từ khoá | `query_cache.py "keyword" --max-results 25` |
 | Query 1 tài liệu | `query_cache.py --doc <doc-id>` |
 | Query 1 block | `query_cache.py --block-id "<id>"` |
+| Tài liệu đổi gì so với bản trước | `query_cache.py --changes --doc <doc-id>` |
 | Inspect cấu trúc Excel | `inspect_excel.py requirements/api.xlsx --preview-rows 5` |
 | Outline Markdown | `read_markdown.py requirements/business.md --outline-only` |
 | Outline PDF (số trang, bookmark, trang không có chữ) | `read_pdf.py requirements/policy.pdf --outline-only` |

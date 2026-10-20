@@ -5,7 +5,7 @@ Activate the `document-reader` Agent Skill when the user provides a local requir
 1. Treat the supplied folder as the requirements boundary and this repository as the project boundary.
 2. Load `.document-reader/knowledge.md` if it exists.
 3. Refresh `.document-reader/manifest.json` with the skill's `index_documents.py`.
-4. Invalidate knowledge whose source hash changed.
+4. Invalidate knowledge whose source hash changed; the skill's change report (`query_cache.py --changes`) says which requirements and sections changed.
 5. Read only relevant sections or spreadsheet ranges.
 6. Map requirements to code, update source and tests, and run validation.
 7. Update `.document-reader/knowledge.md` for future contexts.

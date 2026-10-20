@@ -33,5 +33,5 @@ This file is a durable, project-local handoff between coding-agent sessions. Kee
 
 ## Invalidated knowledge
 
-Move entries here when their source hash changes. Re-read the source before reuse.
+Move entries here when their source hash changes and the change report (`query_cache.py --changes`) lists them, or when the whole document has to be re-read. Re-read the source before reuse.
 

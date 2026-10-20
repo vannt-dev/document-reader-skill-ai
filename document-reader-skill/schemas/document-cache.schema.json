@@ -19,6 +19,18 @@
           "sha256": { "type": "string" },
           "type": { "enum": ["excel", "markdown", "pdf", "docx", "pptx", "csv", "unknown"] },
           "error": { "type": "string" },
+          "changes": {
+            "type": "object",
+            "description": "Counts of the change report in the document's cache file; query_cache.py --changes lists them.",
+            "required": ["previous_sha256", "added", "changed", "removed", "unchanged"],
+            "properties": {
+              "previous_sha256": { "type": "string" },
+              "added": { "type": "integer", "minimum": 0 },
+              "changed": { "type": "integer", "minimum": 0 },
+              "removed": { "type": "integer", "minimum": 0 },
+              "unchanged": { "type": "integer", "minimum": 0 }
+            }
+          },
           "blocks": {
             "type": "array",
             "items": {

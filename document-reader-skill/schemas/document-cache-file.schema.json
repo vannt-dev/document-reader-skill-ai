@@ -3,6 +3,25 @@
   "$id": "https://example.local/document-reader/document-cache-file.schema.json",
   "title": "Document Reader Cache File",
   "type": "object",
+  "$defs": {
+    "change": {
+      "type": "object",
+      "required": ["key", "kind", "label", "block_id", "ref"],
+      "properties": {
+        "key": { "type": "string" },
+        "kind": { "enum": ["section", "requirement", "row", "header"] },
+        "label": { "type": "string" },
+        "requirement_id": { "type": "string" },
+        "block_id": { "type": "string" },
+        "ref": { "type": "object" },
+        "block_line": { "type": "integer", "minimum": 1 },
+        "diff": { "type": "array", "items": { "type": "string" } },
+        "diff_truncated": { "type": "boolean" },
+        "before": {},
+        "after": {}
+      }
+    }
+  },
   "additionalProperties": false,
   "required": ["doc_id", "path", "sha256", "type", "blocks"],
   "properties": {
@@ -16,6 +35,28 @@
       "description": "Present when the PDF was cached with OCR on; pages read that way carry ref.ocr.",
       "required": ["languages"],
       "properties": { "languages": { "type": "string" } }
+    },
+    "changes": {
+      "type": "object",
+      "description": "Present when the document changed since the version cached before: the units added, changed and removed (cache_changes.py).",
+      "required": ["previous_sha256", "summary", "added", "changed", "removed"],
+      "properties": {
+        "previous_sha256": { "type": "string" },
+        "summary": {
+          "type": "object",
+          "required": ["added", "changed", "removed", "unchanged"],
+          "properties": {
+            "added": { "type": "integer", "minimum": 0 },
+            "changed": { "type": "integer", "minimum": 0 },
+            "removed": { "type": "integer", "minimum": 0 },
+            "unchanged": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "added": { "type": "array", "items": { "$ref": "#/$defs/change" } },
+        "changed": { "type": "array", "items": { "$ref": "#/$defs/change" } },
+        "removed": { "type": "array", "items": { "$ref": "#/$defs/change" } },
+        "truncated": { "type": "boolean" }
+      }
     },
     "blocks": {
       "type": "array",
