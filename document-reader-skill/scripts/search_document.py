@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Search a document and return compact cited matches.
 
-Excel and CSV cite cells, Markdown cites lines, PDF pages, Word paragraphs and
-PowerPoint slides.
+Excel and CSV cite cells, Markdown and plain text cite lines, PDF pages, Word
+and HTML paragraphs, and PowerPoint slides.
 """
 
 from __future__ import annotations
@@ -37,14 +37,19 @@ def main() -> int:
             raise ValueError("max-results must be positive and context-lines non-negative")
         matches, truncated = [], False
         find = matcher(args.query, args.regex, args.case_sensitive)
-        if path.suffix.lower() in {".md", ".markdown"}:
-            lines = path.read_text(encoding="utf-8-sig").splitlines()
+        if path.suffix.lower() in {".md", ".markdown", ".txt"}:
+            if path.suffix.lower() == ".txt":
+                from read_txt import txt_lines
+
+                lines = txt_lines(path)[0]
+            else:
+                lines = path.read_text(encoding="utf-8-sig").splitlines()
             hit_lines = [number for number, line in enumerate(lines, 1) if find(line)]
             truncated = len(hit_lines) > args.max_results
             for number in hit_lines[:args.max_results]:
                 start, end = max(1, number - args.context_lines), min(len(lines), number + args.context_lines)
                 matches.append({"line": number, "context_start": start, "context_end": end, "text": "\n".join(lines[start - 1:end])})
-            kind = "markdown"
+            kind = "text" if path.suffix.lower() == ".txt" else "markdown"
         elif path.suffix.lower() == ".pdf":
             from doc_text import open_pdf, pdf_page_text
 
@@ -62,10 +67,11 @@ def main() -> int:
                 if truncated:
                     break
             kind = "pdf"
-        elif path.suffix.lower() == ".docx":
+        elif path.suffix.lower() in {".docx", ".html", ".htm"}:
             from doc_text import docx_items, docx_render
+            from html_text import html_items
 
-            items = docx_items(path)
+            items = docx_items(path) if path.suffix.lower() == ".docx" else html_items(path)
             hits = [item["index"] for item in items if find(item["text"])]
             truncated = len(hits) > args.max_results
             for index in hits[:args.max_results]:
@@ -74,7 +80,7 @@ def main() -> int:
                     "paragraph": index, "context_start": start, "context_end": end,
                     "text": docx_render(items[start - 1:end]),
                 })
-            kind = "docx"
+            kind = "docx" if path.suffix.lower() == ".docx" else "html"
         elif path.suffix.lower() == ".pptx":
             from doc_text import pptx_render, pptx_slides
 

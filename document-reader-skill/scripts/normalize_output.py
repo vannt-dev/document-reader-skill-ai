@@ -49,7 +49,7 @@ def main() -> int:
         elif payload.get("type") == "csv" and "preview" in payload:
             data = {"rows": payload.get("rows"), "columns": payload.get("columns"), "preview": payload["preview"]}
             blocks = [{"kind": "structure", "source": source_ref(payload), "data": data}]
-        elif payload.get("type") in {"markdown", "pdf", "docx", "pptx"} and "content" in payload:
+        elif payload.get("type") in {"markdown", "pdf", "docx", "pptx", "html", "text"} and "content" in payload:
             blocks = [{"kind": "text", "source": source_ref(payload), "data": payload["content"]}]
         elif "sheets" in payload or "outline" in payload:
             blocks = [{"kind": "structure", "source": source_ref(payload), "data": payload.get("sheets", payload.get("outline"))}]
