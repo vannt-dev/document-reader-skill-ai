@@ -1,6 +1,6 @@
 # Hướng dẫn sử dụng Document Reader
 
-Hướng dẫn thực hành để cài và dùng skill: đọc requirement Excel/CSV/Markdown/PDF/Word/PowerPoint **một lần**,
+Hướng dẫn thực hành để cài và dùng skill: đọc requirement Excel/CSV/Markdown/PDF/Word/PowerPoint/HTML/text **một lần**,
 lưu vào cache bền, rồi dùng lại cho nhiều context mà không phải đọc lại tài liệu.
 
 > Tổng quan kiến trúc và triết lý xem [`README.md`](README.md).
@@ -72,7 +72,7 @@ Gemini CLI:  ~/.gemini/skills/document-reader
 
 ## 2. Dùng hằng ngày — cách đơn giản (để agent tự làm)
 
-1. Đặt tài liệu `.xlsx` / `.xlsm` / `.csv` / `.tsv` / `.md` / `.markdown` / `.pdf` / `.docx` / `.pptx` vào `requirements/`.
+1. Đặt tài liệu `.xlsx` / `.xlsm` / `.csv` / `.tsv` / `.md` / `.markdown` / `.pdf` / `.docx` / `.pptx` / `.html` / `.htm` / `.txt` vào `requirements/`.
 2. Mở coding agent **tại thư mục project**.
 3. Gõ:
 
@@ -168,6 +168,10 @@ cho tới khi bạn chạy lại `build_cache.py`.
 | Đọc vài slide, kèm ghi chú diễn giả | `read_pptx.py requirements/kickoff.pptx --slides 3-5` |
 | Xem cấu trúc CSV | `read_csv.py requirements/rules.csv --outline-only` |
 | Lọc dòng CSV theo cột | `read_csv.py requirements/rules.csv --filter Status=pending` |
+| Outline trang HTML (bản export Confluence/wiki) | `read_html.py requirements/checkout.html --outline-only` |
+| Đọc một mục HTML | `read_html.py requirements/checkout.html --heading "Fees"` |
+| Outline file text (mã hóa, heading `#` nếu có) | `read_txt.py requirements/notes.txt --outline-only` |
+| Đọc một đoạn dòng file text | `read_txt.py requirements/notes.txt --start-line 1 --end-line 80` |
 
 ---
 

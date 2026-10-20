@@ -6,6 +6,8 @@ import csv
 from pathlib import Path
 from typing import Iterator
 
+from common import decode_text
+
 # A cell this large is a sign the delimiter was guessed wrong, not real data.
 csv.field_size_limit(16 * 1024 * 1024)
 
@@ -14,12 +16,8 @@ CANDIDATE_DELIMITERS = ",;\t|"
 
 
 def _decode(path: Path) -> str:
-    """UTF-8 (with or without a BOM), else Windows-1252, which never fails."""
-    data = path.read_bytes()
-    try:
-        return data.decode("utf-8-sig")
-    except UnicodeDecodeError:
-        return data.decode("cp1252", errors="replace")
+    """UTF-8 or UTF-16 (with or without a BOM), else Windows-1252, which never fails."""
+    return decode_text(path.read_bytes())[0]
 
 
 def detect_delimiter(path: Path, sample: str) -> str:

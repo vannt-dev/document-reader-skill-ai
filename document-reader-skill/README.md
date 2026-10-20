@@ -1,6 +1,6 @@
 # Document Reader
 
-Document Reader giúp coding agent đọc requirement Excel/CSV/Markdown/PDF/Word/PowerPoint trong project
+Document Reader giúp coding agent đọc requirement Excel/CSV/Markdown/PDF/Word/PowerPoint/HTML/text trong project
 mà không nạp toàn bộ tài liệu vào model context.
 
 ## Trải nghiệm mục tiêu
@@ -223,7 +223,7 @@ mặc định, ví dụ `vie+eng`).
 python -m pip install openpyxl pypdf
 ```
 
-Markdown, `.docx`, `.pptx` và `.csv`/`.tsv` chỉ dùng thư viện chuẩn. `.xls` cũ cần được chuyển sang `.xlsx`, `.doc` cũ sang `.docx`, `.ppt` cũ sang `.pptx`.
+Markdown, `.docx`, `.pptx`, `.csv`/`.tsv`, `.html`/`.htm` và `.txt` chỉ dùng thư viện chuẩn. `.xls` cũ cần được chuyển sang `.xlsx`, `.doc` cũ sang `.docx`, `.ppt` cũ sang `.pptx`.
 PDF scan không có lớp chữ không đọc được (skill không làm OCR).
 
 ## Tự động cài Python environment
@@ -293,6 +293,8 @@ python scripts/read_pdf.py requirements/policy.pdf --outline-only --output outli
 python scripts/read_docx.py requirements/spec.docx --outline-only --output outline.json
 python scripts/read_pptx.py requirements/kickoff.pptx --outline-only --output outline.json
 python scripts/read_csv.py requirements/rules.csv --outline-only --output structure.json
+python scripts/read_html.py requirements/checkout.html --outline-only --output outline.json
+python scripts/read_txt.py requirements/notes.txt --outline-only --output outline.json
 ```
 
 Tìm và trích phần liên quan:
@@ -305,6 +307,8 @@ python scripts/read_pdf.py requirements/policy.pdf --pages 3-5 --output extracte
 python scripts/read_docx.py requirements/spec.docx --heading "Authentication" --output extracted.json
 python scripts/read_pptx.py requirements/kickoff.pptx --slides 3-5 --output extracted.json
 python scripts/read_csv.py requirements/rules.csv --filter Status=pending --output extracted.json
+python scripts/read_html.py requirements/checkout.html --heading "Fees" --output extracted.json
+python scripts/read_txt.py requirements/notes.txt --start-line 1 --end-line 80 --output extracted.json
 ```
 
 Chuẩn hóa nếu cần artifact trung gian:

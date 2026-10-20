@@ -120,9 +120,30 @@ def csv_metadata(path: Path, preview_rows: int, max_columns: int) -> dict:
     return structure
 
 
+def html_metadata(path: Path, max_headings: int) -> dict:
+    from read_html import outline
+
+    structure = outline(path)
+    headings = structure.pop("outline")
+    del structure["document"], structure["type"]
+    return {**structure, "headings": headings[:max_headings], "headings_truncated": len(headings) > max_headings}
+
+
+def text_metadata(path: Path, max_headings: int) -> dict:
+    from read_txt import outline
+
+    structure = outline(path)
+    headings = structure.pop("outline")
+    del structure["document"], structure["type"]
+    return {**structure, "headings": headings[:max_headings], "headings_truncated": len(headings) > max_headings}
+
+
 # Types added after Excel and Markdown: a file of one of these that cannot be
 # read is recorded on the document rather than failing the whole index.
-LATER_TYPES = {"pdf": pdf_metadata, "docx": docx_metadata, "pptx": pptx_metadata, "csv": csv_metadata}
+LATER_TYPES = {
+    "pdf": pdf_metadata, "docx": docx_metadata, "pptx": pptx_metadata, "csv": csv_metadata,
+    "html": html_metadata, "text": text_metadata,
+}
 
 
 def main() -> int:

@@ -123,6 +123,50 @@ def extract_docx(path: Path) -> list[dict]:
     return blocks
 
 
+def extract_html(path: Path) -> list[dict]:
+    """Sections between headings, cited by paragraph number like .docx."""
+    from doc_text import docx_render, docx_sections
+    from html_text import html_items
+
+    items = html_items(path)
+    blocks = []
+    for section in docx_sections(items):
+        title = section["title"] or "(preamble)"
+        blocks.append({
+            "block_id": f"{slugify(title)}@P{section['start']}-{section['end']}",
+            "ref": {
+                "heading": section["title"],
+                "level": section["level"],
+                "paragraphs": [section["start"], section["end"]],
+            },
+            "label": title,
+            "content": {"text": docx_render(items[section["start"] - 1:section["end"]])},
+        })
+    return blocks
+
+
+def extract_text(path: Path, window: int) -> list[dict]:
+    """Like Markdown, cited by line; a long section is cut every `window` lines,
+    since a plain-text file often has no heading at all."""
+    from read_txt import sections, txt_lines
+
+    lines, _ = txt_lines(path)
+    blocks = []
+    for section in sections(lines, window):
+        title = section["title"] or "(preamble)"
+        blocks.append({
+            "block_id": f"{slugify(title)}@L{section['start']}-{section['end']}",
+            "ref": {
+                "heading": section["title"],
+                "level": section["level"],
+                "lines": [section["start"], section["end"]],
+            },
+            "label": title,
+            "content": {"text": "\n".join(lines[section["start"] - 1:section["end"]])},
+        })
+    return blocks
+
+
 def extract_pptx(path: Path) -> list[dict]:
     from doc_text import pptx_render, pptx_slides
 
@@ -268,6 +312,10 @@ def build(
                 cache_payload["blocks"] = extract_pptx(source)
             elif doc_type == "csv":
                 cache_payload["blocks"] = extract_csv(source, window)
+            elif doc_type == "html":
+                cache_payload["blocks"] = extract_html(source)
+            elif doc_type == "text":
+                cache_payload["blocks"] = extract_text(source, window)
             else:
                 cache_payload["blocks"] = extract_excel(source, window)
         except Exception as exc:  # noqa: BLE001 - record, do not abort the whole build
