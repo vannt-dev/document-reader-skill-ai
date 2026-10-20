@@ -3,7 +3,7 @@
 Hướng dẫn thực hành để cài và dùng skill: đọc requirement Excel/CSV/Markdown/PDF/Word/PowerPoint/HTML/text **một lần**,
 lưu vào cache bền, rồi dùng lại cho nhiều context mà không phải đọc lại tài liệu.
 
-> Tổng quan kiến trúc và triết lý xem [`README.md`](README.md).
+> Tổng quan kiến trúc và triết lý xem [`README.vi.md`](README.vi.md).
 > Workflow chi tiết cho coding agent xem [`document-reader-skill/SKILL.md`](document-reader-skill/SKILL.md).
 
 ---

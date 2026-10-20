@@ -1,9 +1,14 @@
 # Document Reader Skill
 
-Skill dành cho coding agent đọc có chọn lọc requirement trong một thư mục local,
-sau đó cập nhật trực tiếp source code và tests của project hiện tại.
+[![CI](https://github.com/vannt-dev/document-reader-skill-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/vannt-dev/document-reader-skill-ai/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Sau khi cài đặt một lần, người dùng có thể chỉ cần đưa tên folder:
+Tiếng Việt: [README.vi.md](README.vi.md)
+
+A skill for coding agents that reads requirement documents from a local folder,
+selectively, and then updates the source code and tests of the current project.
+
+Once it is installed, a folder name is enough:
 
 ```text
 Apply requirements from ./requirements
@@ -21,22 +26,48 @@ Host coding agent (Codex, Claude Code, Gemini CLI, ...)
 Project code changes + tests
 ```
 
-Coding agent là thành phần sửa project. Các script của skill chỉ đọc và chuẩn
-hóa tài liệu. Adapter OpenAI/Anthropic/Gemini là tùy chọn dành cho phân tích API
-và không có quyền sửa filesystem.
+The coding agent is what changes the project. The skill's scripts only read and
+normalize documents. The OpenAI, Anthropic and Gemini adapters are optional, for
+analysis through an API, and cannot touch the file system.
 
-Tri thức dùng lại giữa các context được lưu trong project:
+## Supported documents
+
+| Format | Extensions | Cited by |
+|---|---|---|
+| Excel | `.xlsx`, `.xlsm` | sheet and cell |
+| CSV | `.csv`, `.tsv` | cell |
+| Markdown | `.md`, `.markdown` | heading and line |
+| PDF | `.pdf`, with tables, and scanned pages through OCR | page |
+| Word | `.docx` | heading and paragraph |
+| PowerPoint | `.pptx` | slide |
+| HTML | `.html`, `.htm`, such as Confluence or wiki exports | heading and paragraph |
+| Plain text | `.txt` | line |
+
+Legacy `.xls`, `.doc` and `.ppt` files must be saved in the newer format first.
+Pictures (`.png`, `.jpg`, ...) can be read one at a time with OCR but are not indexed.
+
+## Knowledge kept between sessions
+
+What the agent learns is stored in the project, so a later session, or another
+agent, picks it up:
 
 ```text
 .document-reader/
-├── manifest.json   # hash và cấu trúc tài liệu
-└── knowledge.md    # requirement, mapping code, trạng thái và validation
+├── manifest.json   # hashes and structure of the documents
+├── index.json      # catalog of the cached blocks of each document
+├── cache/          # full normalized content, one JSON file per document
+└── knowledge.md    # requirements, code mapping, status and validation
 ```
 
-Đây là project-persistent context, không phải trí nhớ ngầm của model. Vì vậy
-Codex, Claude Code hoặc Gemini CLI đều có thể đọc lại nếu được cấu hình dùng skill.
+This is context persisted in the project, not hidden model memory, so Codex,
+Claude Code or Gemini CLI can all read it when they are set up to use the skill.
 
-## Tự cài Python environment
+Documents are read once. When one is edited, only that document is read again,
+and the cache records what was added, changed and removed, by requirement ID
+(`REQ-12`), heading or table row, so the agent applies only what changed:
+`query_cache.py --changes --doc <doc-id>`.
+
+## Python environment
 
 Windows:
 
@@ -50,13 +81,13 @@ Linux/macOS:
 sh setup-python-env.sh
 ```
 
-Hai bootstrap dùng `uv` để tự cài Python 3.12, tạo venv trung lập tại
-`~/.document-reader/venv` và cài `openpyxl`, `pypdf`.
+Both scripts use `uv` to install Python 3.12, create a separate virtual
+environment in `~/.document-reader/venv`, and install `openpyxl`, `pypdf` and
+`pdfplumber`.
 
-### OCR cho PDF scan và ảnh (tùy chọn)
+### OCR for scanned PDFs and pictures (optional)
 
-Trang PDF scan và ảnh chụp không có lớp chữ. Để skill đọc được chúng bằng
-Tesseract:
+Scanned PDF pages and photos have no text layer. To read them with Tesseract:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup-ocr.ps1
@@ -66,33 +97,38 @@ powershell -ExecutionPolicy Bypass -File .\setup-ocr.ps1
 sh setup-ocr.sh
 ```
 
-Trên Windows script cài Tesseract bằng `winget` nếu máy chưa có (Windows sẽ hỏi
-quyền); trên Linux/macOS bạn tự cài `tesseract` bằng trình quản lý gói trước. Cả
-hai script tải dữ liệu tiếng Việt và tiếng Anh vào `~/.document-reader/tessdata`.
-Không chạy bước này thì mọi thứ khác vẫn hoạt động; trang scan được báo là chưa đọc.
+On Windows the script installs Tesseract with `winget` when it is missing (Windows
+asks for permission); on Linux and macOS install `tesseract` with your package
+manager first. Both scripts download the Vietnamese and English language data into
+`~/.document-reader/tessdata`. Everything else works without this step; scanned
+pages are then reported as unread.
 
-Xem [`document-reader-skill/SKILL.md`](document-reader-skill/SKILL.md) để biết
-workflow và [`document-reader-skill/README.md`](document-reader-skill/README.md)
-để cài đặt, sử dụng.
+## Install for a project
 
-## Cài tự động trên Windows
+Windows:
 
 ```powershell
 .\setup-document-reader.bat C:\Git\my-project requirements --agent all /install-deps
 ```
 
-Batch cài skill cho Codex, Claude Code và Gemini CLI; tạo `requirements/`,
-`.document-reader/`, các instruction file native và manifest lần đầu.
-
-## Cài tự động trên Linux/macOS
+Linux/macOS:
 
 ```bash
 chmod +x setup-document-reader.sh
 ./setup-document-reader.sh /path/to/my-project requirements --agent all --install-deps
 ```
 
-Script POSIX hỗ trợ Linux và macOS, thực hiện cùng workflow với bản Windows.
+The script installs the skill for Codex, Claude Code and Gemini CLI, and creates
+`requirements/`, `.document-reader/`, each agent's instruction file and the first
+manifest. Run it again after updating this repository so installed copies pick
+up the change.
 
-## Giấy phép
+## Documentation
 
-Phát hành theo giấy phép MIT. Xem [LICENSE](LICENSE).
+- [`document-reader-skill/SKILL.md`](document-reader-skill/SKILL.md): the workflow the agent follows.
+- [`document-reader-skill/README.md`](document-reader-skill/README.md) and [`USAGE.md`](USAGE.md): installation, commands and troubleshooting (in Vietnamese).
+- [`CHANGELOG.md`](CHANGELOG.md): changes by release.
+
+## License
+
+Released under the MIT license. See [LICENSE](LICENSE).
