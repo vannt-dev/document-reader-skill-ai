@@ -23,7 +23,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-26.04, windows-latest]
         # 3.10 is the oldest version the skill supports.
         python: ['3.10', '3.13']
     steps:
@@ -45,7 +45,7 @@ jobs:
 
   scripts:
     name: setup script syntax
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - uses: actions/checkout@v6
       - name: Check POSIX setup scripts parse
