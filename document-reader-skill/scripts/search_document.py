@@ -8,16 +8,9 @@ and HTML paragraphs, and PowerPoint slides.
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 
-from common import DOCUMENT_TYPES, add_output_argument, emit, json_value, require_path
-
-
-def matcher(query: str, regex: bool, case_sensitive: bool):
-    flags = 0 if case_sensitive else re.IGNORECASE
-    pattern = re.compile(query if regex else re.escape(query), flags)
-    return pattern.search
+from common import DOCUMENT_TYPES, add_output_argument, emit, json_value, require_path, text_matcher
 
 
 def main() -> int:
@@ -36,7 +29,7 @@ def main() -> int:
         if args.max_results < 1 or args.context_lines < 0:
             raise ValueError("max-results must be positive and context-lines non-negative")
         matches, truncated = [], False
-        find = matcher(args.query, args.regex, args.case_sensitive)
+        find = text_matcher(args.query, args.regex, args.case_sensitive)
         if path.suffix.lower() in {".md", ".markdown", ".txt"}:
             if path.suffix.lower() == ".txt":
                 from read_txt import txt_lines

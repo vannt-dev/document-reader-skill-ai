@@ -8,7 +8,7 @@ import json
 import sys
 from pathlib import Path
 
-from common import add_output_argument, emit
+from common import add_output_argument, emit, text_matcher
 
 
 def _read_json(path: Path):
@@ -59,8 +59,8 @@ def query(cache_dir, keyword=None, doc=None, block_id=None, label=None, max_resu
         return _envelope(keyword, doc, block_id, label, [], False, warnings)
 
     manifest_hashes = _manifest_hashes(cache_dir)
-    needle = keyword.casefold() if keyword else None
-    label_needle = label.casefold() if label else None
+    find = text_matcher(keyword) if keyword else None
+    label_matches = text_matcher(label) if label else None
     results: list[dict] = []
     truncated = False
 
@@ -77,11 +77,11 @@ def query(cache_dir, keyword=None, doc=None, block_id=None, label=None, max_resu
         for block in blocks:
             if block_id and block["block_id"] != block_id:
                 continue
-            if label_needle and label_needle not in block["label"].casefold():
+            if label_matches and not label_matches(block["label"]):
                 continue
-            if needle:
+            if find:
                 # Each value on its own, so a match never runs from one cell into the next.
-                if not any(needle in text.casefold() for text in [block["label"], *_text_values(block["content"])]):
+                if not any(find(text) for text in [block["label"], *_text_values(block["content"])]):
                     continue
             if len(results) >= max_results:
                 truncated = True

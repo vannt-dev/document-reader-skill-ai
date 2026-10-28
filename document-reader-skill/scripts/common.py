@@ -4,8 +4,36 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import sys
+import unicodedata
 from pathlib import Path
 from typing import Any
+
+
+def fold_text(text: str) -> str:
+    """Text without accents or case: "Đăng nhập" -> "dang nhap". đ is a letter of its own in
+    Unicode, not d with a mark, so it is mapped by hand."""
+    decomposed = unicodedata.normalize("NFD", text.replace("đ", "d").replace("Đ", "D"))
+    return "".join(char for char in decomposed if not unicodedata.combining(char)).casefold()
+
+
+def text_matcher(query: str, regex: bool = False, case_sensitive: bool = False):
+    """A test for whether a text contains the query.
+
+    A query typed without accents matches with or without them ("dang nhap" finds "Đăng nhập"),
+    since people often type Vietnamese that way; one typed with accents matches them as written.
+    Regular expressions and case-sensitive searches compare exactly, as before.
+    """
+    if regex or case_sensitive:
+        pattern = re.compile(query if regex else re.escape(query), 0 if case_sensitive else re.IGNORECASE)
+        return pattern.search
+    query = unicodedata.normalize("NFC", query)
+    if fold_text(query) == query.casefold():
+        needle = fold_text(query)
+        return lambda text: needle in fold_text(text)
+    needle = query.casefold()
+    return lambda text: needle in unicodedata.normalize("NFC", text).casefold()
 
 
 DOCUMENT_TYPES = {
@@ -75,7 +103,11 @@ def emit(payload: Any, output: str | None = None) -> None:
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(text + "\n", encoding="utf-8")
     else:
-        print(text)
+        # UTF-8 whatever the console's code page: on Windows a pipe defaults to cp1252, which
+        # cannot hold Vietnamese and made every script with such text in its output fail.
+        sys.stdout.flush()
+        sys.stdout.buffer.write((text + "\n").encode("utf-8"))
+        sys.stdout.buffer.flush()
 
 
 def require_path(raw: str, suffixes: set[str]) -> Path:

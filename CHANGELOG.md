@@ -6,6 +6,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Searching ignores accents when the query is typed without them: `search_document.py`,
+  `query_cache.py --keyword` and `--label` with `dang nhap` find "Đăng nhập". A query typed
+  with accents still matches them as written; `--regex` and `--case-sensitive` are unchanged.
+
+### Fixed
+
+- On Windows, a script whose output held Vietnamese (or any text outside the console's code
+  page) failed with exit code 2 when its output went to a pipe. Output is now always UTF-8.
+
 ### Fixed
 
 - `query_cache.py --keyword` searched the cached block as JSON, so a word like
