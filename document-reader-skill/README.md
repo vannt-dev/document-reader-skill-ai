@@ -307,6 +307,7 @@ Tìm và trích phần liên quan:
 
 ```bash
 python scripts/search_document.py requirements/api.xlsx "authentication" --max-results 20
+python scripts/search_document.py requirements/yeu-cau.docx "dang nhap"   # không dấu: khớp cả "Đăng nhập"
 python scripts/read_excel.py requirements/api.xlsx --sheet API --range A1:H50 --output extracted.json
 python scripts/read_markdown.py requirements/business.md --heading "Authentication" --output extracted.json
 python scripts/read_pdf.py requirements/policy.pdf --pages 3-5 --output extracted.json

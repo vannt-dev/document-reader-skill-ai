@@ -135,7 +135,8 @@ Tùy chọn:
 
 ### 3.3. Query — context sau kéo đúng block, KHÔNG parse lại Excel/MD
 ```bash
-# Theo từ khoá (trên nhãn + nội dung)
+# Theo từ khoá (trên nhãn + nội dung). Gõ không dấu thì khớp cả chữ có dấu
+# ("dang nhap" ra "Đăng nhập"); gõ có dấu thì phải đúng dấu.
 "$PY" "$SKILL/scripts/query_cache.py" "authentication" --max-results 25
 
 # Giới hạn theo tài liệu / nhãn / block cụ thể
