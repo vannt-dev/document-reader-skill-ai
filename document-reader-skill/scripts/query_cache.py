@@ -33,6 +33,20 @@ def _manifest_hashes(cache_dir: Path) -> dict[str, str]:
     return {doc["path"]: doc.get("sha256", "") for doc in manifest.get("documents", [])}
 
 
+def _text_values(content) -> list[str]:
+    """The words a block holds: its strings and numbers, not key names or JSON escapes.
+
+    A table row's `row` number is where the row sits, not what it says, so it is left out.
+    """
+    if isinstance(content, dict):
+        return [text for key, value in content.items() if key != "row" for text in _text_values(value)]
+    if isinstance(content, list):
+        return [text for value in content for text in _text_values(value)]
+    if isinstance(content, bool) or content is None:
+        return []
+    return [str(content)]
+
+
 def query(cache_dir, keyword=None, doc=None, block_id=None, label=None, max_results=50) -> dict:
     cache_dir = Path(cache_dir)
     warnings: list[str] = []
@@ -66,8 +80,8 @@ def query(cache_dir, keyword=None, doc=None, block_id=None, label=None, max_resu
             if label_needle and label_needle not in block["label"].casefold():
                 continue
             if needle:
-                haystack = (block["label"] + json.dumps(block["content"], ensure_ascii=False)).casefold()
-                if needle not in haystack:
+                # Each value on its own, so a match never runs from one cell into the next.
+                if not any(needle in text.casefold() for text in [block["label"], *_text_values(block["content"])]):
                     continue
             if len(results) >= max_results:
                 truncated = True
