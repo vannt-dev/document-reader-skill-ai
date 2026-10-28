@@ -6,16 +6,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-28
+
+Finds Vietnamese typed without accents, and fixes searches that matched every block.
+
 ### Added
 
 - Searching ignores accents when the query is typed without them: `search_document.py`,
   `query_cache.py --keyword` and `--label` with `dang nhap` find "Đăng nhập". A query typed
   with accents still matches them as written; `--regex` and `--case-sensitive` are unchanged.
-
-### Fixed
-
-- On Windows, a script whose output held Vietnamese (or any text outside the console's code
-  page) failed with exit code 2 when its output went to a pipe. Output is now always UTF-8.
+  ([#14](https://github.com/vannt-dev/document-reader-skill-ai/pull/14))
 
 ### Fixed
 
@@ -23,6 +23,10 @@ All notable changes to this project are documented here. The format follows
   `text`, `rows` or `cells` matched every block, and a phrase with a quote or a
   line break never matched. It now searches only the block's label and the text
   and cell values it holds.
+  ([#13](https://github.com/vannt-dev/document-reader-skill-ai/pull/13))
+- On Windows, a script whose output held Vietnamese (or any text outside the console's code
+  page) failed with exit code 2 when its output went to a pipe. Output is now always UTF-8.
+  ([#14](https://github.com/vannt-dev/document-reader-skill-ai/pull/14))
 
 ## [1.1.0] - 2026-10-21
 
@@ -71,6 +75,7 @@ First tagged release of the Document Reader skill.
 - Setup scripts for Windows, Linux and macOS that install the skill for Codex,
   Claude Code and Gemini CLI.
 
-[Unreleased]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/vannt-dev/document-reader-skill-ai/releases/tag/v1.0.0
