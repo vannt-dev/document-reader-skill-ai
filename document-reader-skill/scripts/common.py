@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 import unicodedata
 from pathlib import Path
 from typing import Any
@@ -102,7 +103,11 @@ def emit(payload: Any, output: str | None = None) -> None:
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.write_text(text + "\n", encoding="utf-8")
     else:
-        print(text)
+        # UTF-8 whatever the console's code page: on Windows a pipe defaults to cp1252, which
+        # cannot hold Vietnamese and made every script with such text in its output fail.
+        sys.stdout.flush()
+        sys.stdout.buffer.write((text + "\n").encode("utf-8"))
+        sys.stdout.buffer.flush()
 
 
 def require_path(raw: str, suffixes: set[str]) -> Path:
