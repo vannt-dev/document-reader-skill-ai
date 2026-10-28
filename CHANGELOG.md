@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `query_cache.py --keyword` searched the cached block as JSON, so a word like
+  `text`, `rows` or `cells` matched every block, and a phrase with a quote or a
+  line break never matched. It now searches only the block's label and the text
+  and cell values it holds.
+
 ## [1.1.0] - 2026-10-21
 
 Reads HTML pages and plain-text files, and reports what changed when a document

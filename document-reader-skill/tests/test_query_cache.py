@@ -91,3 +91,44 @@ def test_query_reports_corrupt_index(tmp_path):
     result = query_cache.query(cache_dir, keyword="users")
     assert result["results"] == []
     assert any("index.json" in w for w in result["warnings"])
+
+
+def _seed_blocks(cache_dir: Path, blocks):
+    (cache_dir / "cache").mkdir(parents=True, exist_ok=True)
+    payload = {"doc_id": "doc", "path": "doc.xlsx", "sha256": "h", "type": "excel", "blocks": blocks}
+    (cache_dir / "cache" / "doc.json").write_text(json.dumps(payload), encoding="utf-8")
+    index = {"schema_version": "1.0", "documents": [{
+        "doc_id": "doc", "path": "doc.xlsx", "sha256": "h", "type": "excel",
+        "blocks": [{"block_id": b["block_id"], "label": b["label"]} for b in blocks],
+    }]}
+    (cache_dir / "index.json").write_text(json.dumps(index), encoding="utf-8")
+
+
+def test_query_keyword_does_not_match_key_names(tmp_path):
+    cache_dir = tmp_path / ".document-reader"
+    _seed(cache_dir)
+    for word in ("text", "content", '"'):
+        assert query_cache.query(cache_dir, keyword=word)["results"] == [], word
+
+
+def test_query_keyword_matches_quotes_and_line_breaks_as_written(tmp_path):
+    cache_dir = tmp_path / ".document-reader"
+    _seed_blocks(cache_dir, [{"block_id": "b1", "ref": {}, "label": "Note",
+                              "content": {"text": 'Click "Save"\nthen close the dialog'}}])
+    for word in ('"save"', 'save"\nthen', "\\"):
+        found = [r["block_id"] for r in query_cache.query(cache_dir, keyword=word)["results"]]
+        assert found == ([] if word == "\\" else ["b1"]), word
+
+
+def test_query_keyword_searches_table_cells_not_their_keys(tmp_path):
+    cache_dir = tmp_path / ".document-reader"
+    _seed_blocks(cache_dir, [{"block_id": "Sheet1!A1:B3", "ref": {"sheet": "Sheet1"}, "label": "Sheet1",
+                              "content": {"headers": ["Name", "Price"],
+                                          "rows": [{"row": 2, "cells": ["Apple", 1.5]},
+                                                   {"row": 3, "cells": ["Pear", None]}]}}])
+    hit = lambda word: [r["block_id"] for r in query_cache.query(cache_dir, keyword=word)["results"]]
+    assert hit("pear") == ["Sheet1!A1:B3"]
+    assert hit("price") == ["Sheet1!A1:B3"]
+    assert hit("1.5") == ["Sheet1!A1:B3"]
+    for word in ("cells", "rows", "headers", "null", "row"):
+        assert hit(word) == [], word
