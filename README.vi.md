@@ -5,8 +5,25 @@
 
 English: [README.md](README.md)
 
-Skill dành cho coding agent đọc có chọn lọc requirement trong một thư mục local,
-sau đó cập nhật trực tiếp source code và tests của project hiện tại.
+Skill dành cho coding agent đọc tài liệu requirement (Word, PDF, Excel,
+PowerPoint, Markdown và các định dạng khác) trong một thư mục local, chỉ phần cần
+dùng, để agent cập nhật source code và tests của project hiện tại. Ngoài việc
+đọc nội dung, skill làm thêm hai việc:
+
+- **Bằng chứng lấy từ cache ghi rõ đúng block mà nó được lấy ra.** Tài liệu được
+  chia thành các block, ID của block cho biết vị trí: `Requirements!A1:F40` cho
+  một vùng ô trong sheet, `page-3` hoặc `page-3-table-1` cho PDF, `slide-4`,
+  `login@L12-30` cho một heading Markdown và các dòng của nó, `login@P5-12` cho
+  một heading Word và các đoạn của nó. Tìm trong cache sẽ trả về tài liệu, ID
+  block và vị trí kèm mỗi kết quả, và lệnh
+  `query_cache.py --doc <doc-id> --block-id <block-id>` lấy lại đúng block đó,
+  nên mỗi requirement đều lần lại được nơi nó được viết.
+- **Khi một tài liệu được sửa, bạn có báo cáo phần đã thay đổi.** Phiên bản mới
+  được so với bản đã cache trước đó, và báo cáo liệt kê phần được thêm, sửa, xóa:
+  requirement theo mã (`REQ-12`, `FR-3.1`, `US-7`), section theo heading, trang
+  theo số trang, slide theo tiêu đề hoặc số slide, dòng bảng theo ô chứa mã
+  hoặc ô đầu tiên. Phần text bị sửa có kèm diff ngắn; dòng bảng bị sửa có giá
+  trị các ô trước và sau. Xem bằng `query_cache.py --changes --doc <doc-id>`.
 
 Sau khi cài đặt một lần, người dùng có thể chỉ cần đưa tên folder:
 
