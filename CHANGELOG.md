@@ -15,6 +15,7 @@ Ranks cache searches: multi-word queries now match all words anywhere and are ra
 
 - `query_cache.py --limit N`, another name for `--max-results N`; both now keep the N best
   matches rather than the first N found.
+  ([#17](https://github.com/vannt-dev/document-reader-skill-ai/pull/17))
 - `query_cache.py --explain` adds each result's `score`: how many of the words it holds,
   whether it holds the whole phrase, and its weight.
   ([#17](https://github.com/vannt-dev/document-reader-skill-ai/pull/17))
