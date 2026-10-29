@@ -6,12 +6,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-29
+
+Ranks cache searches: multi-word queries now match all words anywhere and are ranked;
+`--order doc` keeps document order.
+
 ### Added
 
 - `query_cache.py --limit N`, another name for `--max-results N`; both now keep the N best
   matches rather than the first N found.
 - `query_cache.py --explain` adds each result's `score`: how many of the words it holds,
   whether it holds the whole phrase, and its weight.
+  ([#17](https://github.com/vannt-dev/document-reader-skill-ai/pull/17))
 
 ### Changed
 
@@ -21,6 +27,7 @@ All notable changes to this project are documented here. The format follows
   the whole phrase, then those where the words are rarer or repeated, then document order.
   `--order doc` keeps the old order, `--match phrase` the old matching, and `--match any`
   finds blocks with any of the words. Each word keeps the accent rule of 1.2.0.
+  ([#17](https://github.com/vannt-dev/document-reader-skill-ai/pull/17))
 
 ## [1.2.0] - 2026-10-28
 
@@ -91,7 +98,8 @@ First tagged release of the Document Reader skill.
 - Setup scripts for Windows, Linux and macOS that install the skill for Codex,
   Claude Code and Gemini CLI.
 
-[Unreleased]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/vannt-dev/document-reader-skill-ai/releases/tag/v1.0.0
