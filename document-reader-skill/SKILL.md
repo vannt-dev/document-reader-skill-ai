@@ -62,6 +62,7 @@ Use project files as durable memory; do not rely on a model remembering a previo
 - Do not commit `.document-reader/` unless the user or repository policy wants shared team memory.
 - Store full normalized content once in `.document-reader/cache/<doc-id>.json` and a small catalog in `.document-reader/index.json` via `build_cache.py`.
 - At the start of a later context, load `index.json` (not the whole cache); fetch detail with `query_cache.py` instead of re-parsing source documents.
+- A `query_cache.py` keyword of several words returns the blocks holding all of them, best first: more of the words, then the whole phrase, then rarer or repeated words, then document order. Take the top results with `--limit N`; use `--match any` when an all-words search finds nothing, `--match phrase` for exact wording, `--order doc` to read matches in document order, and `--explain` to see each score.
 - Rebuild only documents whose manifest hash changed; `query_cache.py` flags stale blocks and withholds their content until rebuilt.
 - After a rebuild, apply a changed document through its change report (`query_cache.py --changes`) rather than re-reading it whole.
 
@@ -120,6 +121,7 @@ python scripts/run_ai.py context.json --provider anthropic --model MODEL_ID --ta
 python scripts/build_cache.py --manifest .document-reader/manifest.json --max-block-rows 500
 python scripts/build_cache.py --manifest .document-reader/manifest.json --ocr
 python scripts/query_cache.py "authentication" --doc api-xlsx --max-results 25
+python scripts/query_cache.py "password reset lockout" --limit 10 --explain
 python scripts/query_cache.py --changes --doc api-xlsx
 ```
 
