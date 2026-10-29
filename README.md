@@ -5,8 +5,25 @@
 
 Tiếng Việt: [README.vi.md](README.vi.md)
 
-A skill for coding agents that reads requirement documents from a local folder,
-selectively, and then updates the source code and tests of the current project.
+A skill for coding agents that reads requirement documents (Word, PDF, Excel,
+PowerPoint, Markdown and more) from a local folder, only the parts it needs, so
+the agent can update the source code and tests of the current project. Two
+things it adds on top of reading the text:
+
+- **Evidence from the cache names the exact block it came from.** Documents
+  are cut into blocks whose ID names their place: `Requirements!A1:F40` for a
+  sheet range, `page-3` or `page-3-table-1` for a PDF, `slide-4`, `login@L12-30`
+  for a Markdown heading and its lines, `login@P5-12` for a Word heading and its
+  paragraphs. A cache search returns the document, block ID and location with
+  each match, and `query_cache.py --doc <doc-id> --block-id <block-id>` fetches
+  that exact block again, so a requirement can be traced to where it was written.
+- **When a document is edited, you get a report of what changed in it.** The new
+  version is compared with the one cached before, and the report lists what was
+  added, changed and removed: requirements by their ID (`REQ-12`, `FR-3.1`,
+  `US-7`), sections by heading, pages by number, slides by title or number,
+  table rows by their ID cell or first cell. A changed text carries a short
+  diff; a changed row its cells before and after. Read it with
+  `query_cache.py --changes --doc <doc-id>`.
 
 Once it is installed, a folder name is enough:
 
