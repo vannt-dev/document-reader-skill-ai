@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `query_cache.py --limit N`, another name for `--max-results N`; both now keep the N best
+  matches rather than the first N found.
+- `query_cache.py --explain` adds each result's `score`: how many of the words it holds,
+  whether it holds the whole phrase, and its weight.
+
+### Changed
+
+- `query_cache.py` ranks keyword searches. A keyword of several words now finds the blocks
+  holding every word, in any order and in any of the block's values, not only the words
+  together as typed; the best come first: blocks with more of the words, then those with
+  the whole phrase, then those where the words are rarer or repeated, then document order.
+  `--order doc` keeps the old order, `--match phrase` the old matching, and `--match any`
+  finds blocks with any of the words. Each word keeps the accent rule of 1.2.0.
+
 ## [1.2.0] - 2026-10-28
 
 Finds Vietnamese typed without accents, and fixes searches that matched every block.

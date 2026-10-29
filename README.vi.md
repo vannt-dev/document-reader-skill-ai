@@ -65,6 +65,13 @@ Khi một tài liệu được sửa, cache chỉ đọc lại tài liệu đó 
 thêm, sửa, xóa (theo mã requirement như `REQ-12`, theo heading, theo dòng bảng), để
 agent chỉ áp dụng phần đã đổi: `query_cache.py --changes --doc <doc-id>`.
 
+Tìm nhiều từ, như `query_cache.py "dang nhap mat khau"`, trả về các block chứa đủ mọi
+từ và xếp block khớp nhất lên đầu: block chứa nhiều từ hơn, rồi block có các từ đứng
+liền nhau đúng như gõ, rồi block mà các từ hiếm hơn hoặc lặp lại nhiều hơn.
+`--order doc` giữ thứ tự trong tài liệu, `--match any` hoặc `--match phrase` nới hoặc
+siết cách khớp, `--limit N` giới hạn số kết quả và `--explain` cho xem điểm của từng
+kết quả.
+
 Đây là project-persistent context, không phải trí nhớ ngầm của model. Vì vậy
 Codex, Claude Code hoặc Gemini CLI đều có thể đọc lại nếu được cấu hình dùng skill.
 

@@ -28,12 +28,22 @@ def text_matcher(query: str, regex: bool = False, case_sensitive: bool = False):
     if regex or case_sensitive:
         pattern = re.compile(query if regex else re.escape(query), 0 if case_sensitive else re.IGNORECASE)
         return pattern.search
+    needle, normalize = _needle(query)
+    return lambda text: needle in normalize(text)
+
+
+def text_counter(query: str):
+    """How many times a text holds the query, under the same accent rule as `text_matcher`."""
+    needle, normalize = _needle(query)
+    return lambda text: normalize(text).count(needle)
+
+
+def _needle(query: str):
+    """The query and the way to normalise a text before looking for it there."""
     query = unicodedata.normalize("NFC", query)
     if fold_text(query) == query.casefold():
-        needle = fold_text(query)
-        return lambda text: needle in fold_text(text)
-    needle = query.casefold()
-    return lambda text: needle in unicodedata.normalize("NFC", text).casefold()
+        return fold_text(query), fold_text
+    return query.casefold(), lambda text: unicodedata.normalize("NFC", text).casefold()
 
 
 DOCUMENT_TYPES = {

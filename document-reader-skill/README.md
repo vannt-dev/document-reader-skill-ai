@@ -58,7 +58,9 @@ trước mới được trích lại. Dùng `--share local|commit` để cấu h
 `query_cache.py` tra cứu block đã cache theo từ khóa, `--doc`, `--block-id`,
 hoặc `--label` mà không bao giờ đọc lại tài liệu nguồn. Nếu hash trong manifest
 không còn khớp với hash đã cache, kết quả được đánh dấu stale và nội dung bị
-giữ lại cho đến khi rebuild.
+giữ lại cho đến khi rebuild. Từ khóa nhiều từ trả về block chứa đủ mọi từ, xếp
+block khớp nhất lên đầu; `--order doc` giữ thứ tự tài liệu, `--match any|phrase`
+đổi cách khớp, `--limit N` giới hạn số kết quả, `--explain` thêm điểm.
 
 ```bash
 python scripts/build_cache.py --manifest .document-reader/manifest.json --share local

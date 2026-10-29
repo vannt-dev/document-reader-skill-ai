@@ -139,6 +139,11 @@ Tùy chọn:
 # ("dang nhap" ra "Đăng nhập"); gõ có dấu thì phải đúng dấu.
 "$PY" "$SKILL/scripts/query_cache.py" "authentication" --max-results 25
 
+# Nhiều từ: block chứa đủ mọi từ, khớp nhất lên đầu (nhiều từ hơn, rồi cụm từ liền nhau,
+# rồi từ hiếm hoặc lặp lại). --order doc giữ thứ tự tài liệu; --match any|phrase nới/siết;
+# --limit N giới hạn số kết quả (như --max-results); --explain thêm điểm cho từng kết quả.
+"$PY" "$SKILL/scripts/query_cache.py" "dang nhap mat khau" --limit 10 --explain
+
 # Giới hạn theo tài liệu / nhãn / block cụ thể
 "$PY" "$SKILL/scripts/query_cache.py" --doc api-xlsx --label "Auth"
 "$PY" "$SKILL/scripts/query_cache.py" --block-id "API!A1:H12"
@@ -168,6 +173,7 @@ lệnh trả về `no_previous_version`.
 | Index tài liệu | `index_documents.py requirements --output .document-reader/manifest.json` |
 | Build/refresh cache | `build_cache.py --manifest .document-reader/manifest.json` |
 | Query theo từ khoá | `query_cache.py "keyword" --max-results 25` |
+| Query nhiều từ, theo thứ tự tài liệu | `query_cache.py "từ một từ hai" --order doc --limit 25` |
 | Query 1 tài liệu | `query_cache.py --doc <doc-id>` |
 | Query 1 block | `query_cache.py --block-id "<id>"` |
 | Tài liệu đổi gì so với bản trước | `query_cache.py --changes --doc <doc-id>` |

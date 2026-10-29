@@ -84,6 +84,13 @@ and the cache records what was added, changed and removed, by requirement ID
 (`REQ-12`), heading or table row, so the agent applies only what changed:
 `query_cache.py --changes --doc <doc-id>`.
 
+A search of several words, such as `query_cache.py "password reset"`, finds the
+blocks holding every word and puts the best first: blocks with more of the
+words, then those with the words together as typed, then those where the words
+are rarer or repeated. `--order doc` keeps the documents' own order,
+`--match any` or `--match phrase` widens or narrows the match, `--limit N` caps
+the results and `--explain` shows each result's score.
+
 ## Python environment
 
 Windows:
