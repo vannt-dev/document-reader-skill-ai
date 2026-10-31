@@ -41,6 +41,17 @@ TITLE_PLACEHOLDERS = {"title", "ctrTitle"}
 # A .docx part larger than this is refused rather than inflated into memory.
 MAX_DOCX_PART_BYTES = 64 * 1024 * 1024
 HEADING_NAME = re.compile(r"^heading\s*([1-9])$", re.IGNORECASE)
+W14 = "{http://schemas.microsoft.com/office/word/2010/wordml}"
+W15 = "{http://schemas.microsoft.com/office/word/2012/wordml}"
+REVISION_TYPES = {
+    f"{W}ins": "inserted", f"{W}del": "deleted", f"{W}moveTo": "moved_to", f"{W}moveFrom": "moved_from",
+}
+# Gone once every change is accepted.
+REMOVED_REVISIONS = {"deleted", "moved_from"}
+CRITIC_MARKS = {
+    "inserted": ("{++", "++}"), "moved_to": ("{++", "++}"),
+    "deleted": ("{--", "--}"), "moved_from": ("{--", "--}"),
+}
 
 
 # --- PDF -------------------------------------------------------------------
@@ -143,25 +154,109 @@ def _style_levels(styles_xml: bytes | None) -> dict[str, int]:
     return levels
 
 
-def _paragraph_text(paragraph) -> str:
-    parts: list[str] = []
+class _Ranges:
+    """Comment ranges open while walking a document body; one can span paragraphs."""
 
-    def collect(node) -> None:
+    def __init__(self) -> None:
+        self.open: dict[str, list[str]] = {}
+        self.anchors: dict[str, str] = {}
+        self.located: set[str] = set()
+
+    def text(self, text: str) -> None:
+        for parts in self.open.values():
+            parts.append(text)
+
+    def close(self, comment_id: str) -> None:
+        if comment_id in self.open:
+            self.anchors[comment_id] = "".join(self.open.pop(comment_id)).strip()
+
+
+def _read_paragraph(paragraph, ranges: _Ranges) -> dict:
+    """A paragraph's text with every tracked change accepted, and what it holds besides.
+
+    `marked` is the text with the changes written in as CriticMarkup ({++inserted++},
+    {--deleted--}), `revisions` lists the changes, and `comments` holds the ids of the
+    comments anchored here.
+    """
+    current: list[str] = []
+    segments: list[tuple[dict | None, list[str]]] = []
+    revisions: list[dict] = []
+    comments: list[str] = []
+
+    def add(text: str, revision: dict | None) -> None:
+        if revision is None or revision["type"] not in REMOVED_REVISIONS:
+            current.append(text)
+            ranges.text(text)
+        if revision is not None:
+            revision["parts"].append(text)
+        if segments and segments[-1][0] is revision:
+            segments[-1][1].append(text)
+        else:
+            segments.append((revision, [text]))
+
+    def collect(node, revision: dict | None) -> None:
         for child in node:
+            tag = child.tag
             # A text box is stored twice, as a drawing and as a legacy fallback; read it once.
-            if child.tag == MC_FALLBACK:
+            if tag == MC_FALLBACK:
                 continue
-            if child.tag == f"{W}t":
-                parts.append(child.text or "")
-            elif child.tag == f"{W}tab":
-                parts.append("\t")
-            elif child.tag in (f"{W}br", f"{W}cr"):
-                parts.append("\n")
+            if tag == f"{W}t":
+                add(child.text or "", revision)
+            elif tag == f"{W}delText":
+                if revision is not None and revision["type"] in REMOVED_REVISIONS:
+                    add(child.text or "", revision)
+            elif tag == f"{W}tab":
+                add("\t", revision)
+            elif tag in (f"{W}br", f"{W}cr"):
+                add("\n", revision)
+            elif tag in REVISION_TYPES:
+                entry = {
+                    "type": REVISION_TYPES[tag],
+                    "author": child.get(f"{W}author"), "date": child.get(f"{W}date"), "parts": [],
+                }
+                revisions.append(entry)
+                collect(child, entry)
+            elif tag in (f"{W}commentRangeStart", f"{W}commentReference"):
+                comment_id = child.get(f"{W}id")
+                if comment_id is None:
+                    continue
+                if comment_id not in ranges.located:
+                    ranges.located.add(comment_id)
+                    comments.append(comment_id)
+                if tag == f"{W}commentRangeStart":
+                    ranges.open.setdefault(comment_id, [])
+            elif tag == f"{W}commentRangeEnd":
+                ranges.close(child.get(f"{W}id") or "")
             else:
-                collect(child)
+                collect(child, revision)
 
-    collect(paragraph)
-    return "".join(parts).strip()
+    collect(paragraph, None)
+    ranges.text("\n")
+    result = {"text": "".join(current).strip(), "marked": "", "revisions": [], "comments": comments}
+    for entry in revisions:
+        text = "".join(entry["parts"])
+        if text.strip():
+            result["revisions"].append({
+                "type": entry["type"], "text": text,
+                **{name: entry[name] for name in ("author", "date") if entry[name]},
+            })
+    if result["revisions"]:
+        pieces = []
+        for revision, texts in segments:
+            text = "".join(texts)
+            if revision is None:
+                pieces.append(text)
+            elif text.strip():
+                opening, closing = CRITIC_MARKS[revision["type"]]
+                pieces.append(f"{opening}{text}{closing}")
+            elif revision["type"] not in REMOVED_REVISIONS:
+                pieces.append(text)
+        result["marked"] = "".join(pieces).strip()
+    return result
+
+
+def _paragraph_text(paragraph) -> str:
+    return _read_paragraph(paragraph, _Ranges())["text"]
 
 
 def _paragraph_level(paragraph, style_levels: dict[str, int]) -> int | None:
@@ -184,31 +279,111 @@ def _paragraph_level(paragraph, style_levels: dict[str, int]) -> int | None:
     return None
 
 
-def _walk(container, style_levels: dict[str, int]):
+def _walk(container, style_levels: dict[str, int], ranges: _Ranges):
+    """Paragraphs and table rows in document order, empty ones too: an empty one
+    can still hold a comment or a deletion."""
     for child in container:
         if child.tag == f"{W}p":
-            text = _paragraph_text(child)
-            if text:
-                level = _paragraph_level(child, style_levels)
-                yield {"kind": "heading" if level else "paragraph", "level": level, "text": text}
+            read = _read_paragraph(child, ranges)
+            level = _paragraph_level(child, style_levels) if read["text"] else None
+            yield {"kind": "heading" if level else "paragraph", "level": level, **read}
         elif child.tag == f"{W}tbl":
             for row in child.iter(f"{W}tr"):
-                cells = []
+                cells, marked, revisions, comments = [], [], [], []
                 for cell in row.findall(f"{W}tc"):
-                    texts = [_paragraph_text(p) for p in cell.iter(f"{W}p")]
-                    cells.append(" ".join(text for text in texts if text).replace("\n", " "))
-                if any(cells):
-                    yield {"kind": "table_row", "level": None, "text": " | ".join(cells)}
+                    reads = [_read_paragraph(p, ranges) for p in cell.iter(f"{W}p")]
+                    cells.append(" ".join(read["text"] for read in reads if read["text"]).replace("\n", " "))
+                    shown = (read["marked"] or read["text"] for read in reads)
+                    marked.append(" ".join(text for text in shown if text).replace("\n", " "))
+                    for read in reads:
+                        revisions += read["revisions"]
+                        comments += read["comments"]
+                yield {
+                    "kind": "table_row", "level": None,
+                    "text": " | ".join(cells) if any(cells) else "",
+                    "marked": " | ".join(marked) if revisions else "",
+                    "revisions": revisions, "comments": comments,
+                }
         elif child.tag == f"{W}sdt":
             content = child.find(f"{W}sdtContent")
             if content is not None:
-                yield from _walk(content, style_levels)
+                yield from _walk(content, style_levels, ranges)
+
+
+def _comments(archive: zipfile.ZipFile) -> tuple[dict[str, dict], dict[str, str]]:
+    """Comments by id, and the parent of each reply (from commentsExtended.xml)."""
+    data = _read_part(archive, "word/comments.xml")
+    if not data:
+        return {}, {}
+    comments: dict[str, dict] = {}
+    by_paragraph: dict[str, str] = {}
+    for node in ElementTree.fromstring(data).iter(f"{W}comment"):
+        comment_id = node.get(f"{W}id")
+        if comment_id is None:
+            continue
+        paragraphs = list(node.iter(f"{W}p"))
+        texts = [_paragraph_text(paragraph) for paragraph in paragraphs]
+        comments[comment_id] = {
+            "id": comment_id,
+            **{name: node.get(f"{W}{name}") for name in ("author", "date") if node.get(f"{W}{name}")},
+            "text": "\n".join(text for text in texts if text),
+        }
+        # commentsExtended.xml names a comment by the paraId of its last paragraph.
+        for paragraph in paragraphs:
+            if paragraph.get(f"{W14}paraId"):
+                by_paragraph[paragraph.get(f"{W14}paraId").upper()] = comment_id
+    parents: dict[str, str] = {}
+    extended = _read_part(archive, "word/commentsExtended.xml")
+    for entry in ElementTree.fromstring(extended).iter(f"{W15}commentEx") if extended else ():
+        comment_id = by_paragraph.get((entry.get(f"{W15}paraId") or "").upper())
+        if comment_id is None:
+            continue
+        if entry.get(f"{W15}done") in ("1", "true"):
+            comments[comment_id]["resolved"] = True
+        parent = by_paragraph.get((entry.get(f"{W15}paraIdParent") or "").upper())
+        if parent is not None and parent != comment_id:
+            parents[comment_id] = parent
+    return comments, parents
+
+
+def _merge(target: dict, source: dict, before: bool) -> None:
+    """Carry what an empty item holds onto a neighbour with text."""
+    if source["marked"]:
+        own = target["marked"] or target["text"]
+        target["marked"] = f"{source['marked']}\n{own}" if before else f"{own}\n{source['marked']}"
+    for name in ("revisions", "comments"):
+        target[name] = source[name] + target[name] if before else target[name] + source[name]
+
+
+def _finish(item: dict, comments: dict[str, dict], parents: dict[str, str],
+            anchors: dict[str, str]) -> None:
+    """Resolve comment ids into threads; drop the annotation keys an item does not need."""
+    threads = []
+    for comment_id in item.pop("comments"):
+        if comment_id not in comments or parents.get(comment_id) in comments:
+            continue  # unknown, or a reply: replies sit under their parent
+        thread = {**comments[comment_id], "anchor": anchors.get(comment_id, "")}
+        replies = [dict(comments[reply]) for reply, parent in parents.items()
+                   if parent == comment_id and reply in comments]
+        if replies:
+            thread["replies"] = replies
+        threads.append(thread)
+    if threads:
+        item["comments"] = threads
+    marked = item.pop("marked")
+    if item["revisions"]:
+        item["marked"] = marked
+    else:
+        del item["revisions"]
 
 
 def docx_items(path: Path) -> list[dict]:
     """Non-empty paragraphs, headings and table rows in document order.
 
     Each item carries a 1-based `index`, which is the citation unit for .docx.
+    The text is the document with every tracked change accepted. An item holding
+    comments carries `comments`; one holding tracked changes carries `revisions`
+    and `marked`, its text with the changes written in. Other items carry neither.
     """
     try:
         archive = zipfile.ZipFile(path)
@@ -221,13 +396,45 @@ def docx_items(path: Path) -> list[dict]:
         if document is None:
             raise ValueError("Not a Word document: word/document.xml is missing")
         style_levels = _style_levels(_read_part(archive, "word/styles.xml"))
+        comments, parents = _comments(archive)
     body = ElementTree.fromstring(document).find(f"{W}body")
     if body is None:
         return []
-    items = list(_walk(body, style_levels))
+    ranges = _Ranges()
+    items: list[dict] = []
+    # A paragraph or row that is empty once the changes are accepted (a deleted one)
+    # gets no number; what it holds goes to the item before it, or the first item.
+    leading: dict | None = None
+    for item in _walk(body, style_levels, ranges):
+        if item["text"]:
+            if leading is not None:
+                _merge(item, leading, before=True)
+                leading = None
+            items.append(item)
+        elif item["revisions"] or item["comments"]:
+            if items:
+                _merge(items[-1], item, before=False)
+            elif leading is None:
+                leading = item
+            else:
+                _merge(leading, item, before=False)
     for index, item in enumerate(items, 1):
         item["index"] = index
+        _finish(item, comments, parents, ranges.anchors)
     return items
+
+
+def docx_annotations(items: list[dict]) -> dict:
+    """The comments and tracked changes of a run of items, each with its paragraph number.
+
+    Empty for items that hold none, so a plain document gains no keys.
+    """
+    result: dict = {}
+    for name in ("comments", "revisions"):
+        found = [{"paragraph": item["index"], **entry} for item in items for entry in item.get(name, [])]
+        if found:
+            result[name] = found
+    return result
 
 
 def docx_outline(items: list[dict]) -> list[dict]:
@@ -256,14 +463,18 @@ def docx_sections(items: list[dict]) -> list[dict]:
     return sections
 
 
-def docx_render(items: list[dict]) -> str:
-    """Plain text for a run of items; headings keep their level as Markdown hashes."""
+def docx_render(items: list[dict], show_changes: bool = False) -> str:
+    """Plain text for a run of items; headings keep their level as Markdown hashes.
+
+    `show_changes` writes tracked changes in, as {++inserted++} and {--deleted--}.
+    """
     lines = []
     for item in items:
+        text = item.get("marked", item["text"]) if show_changes else item["text"]
         if item["kind"] == "heading":
-            lines.append(f"{'#' * item['level']} {item['text']}")
+            lines.append(f"{'#' * item['level']} {text}")
         else:
-            lines.append(item["text"])
+            lines.append(text)
     return "\n".join(lines)
 
 

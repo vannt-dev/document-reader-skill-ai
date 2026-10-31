@@ -231,6 +231,13 @@ mặc định, ví dụ `vie+eng`).
 python -m pip install openpyxl pypdf
 ```
 
+Word được đọc như khi đã chấp nhận mọi track changes. Comment (tác giả, ngày, nội dung,
+đoạn được comment `anchor`, `replies`, `resolved`) và thay đổi (`inserted`, `deleted`,
+`moved_from`, `moved_to`) nằm trong `comments` / `revisions` của `read_docx.py` và của block
+cache, mỗi mục có `paragraph` để trích dẫn; `tracked_text` trong cache (hoặc
+`read_docx.py --show-changes`) ghi thay đổi vào văn bản dạng `{++chèn++}` và `{--xóa--}`.
+Tài liệu không có comment hay track changes cho kết quả y như trước.
+
 Markdown, `.docx`, `.pptx`, `.csv`/`.tsv`, `.html`/`.htm` và `.txt` chỉ dùng thư viện chuẩn. `.xls` cũ cần được chuyển sang `.xlsx`, `.doc` cũ sang `.docx`, `.ppt` cũ sang `.pptx`.
 PDF scan không có lớp chữ không đọc được (skill không làm OCR).
 
@@ -314,6 +321,7 @@ python scripts/read_excel.py requirements/api.xlsx --sheet API --range A1:H50 --
 python scripts/read_markdown.py requirements/business.md --heading "Authentication" --output extracted.json
 python scripts/read_pdf.py requirements/policy.pdf --pages 3-5 --output extracted.json
 python scripts/read_docx.py requirements/spec.docx --heading "Authentication" --output extracted.json
+python scripts/read_docx.py requirements/spec.docx --heading "Authentication" --show-changes   # ghi track changes vào nội dung
 python scripts/read_pptx.py requirements/kickoff.pptx --slides 3-5 --output extracted.json
 python scripts/read_csv.py requirements/rules.csv --filter Status=pending --output extracted.json
 python scripts/read_html.py requirements/checkout.html --heading "Fees" --output extracted.json

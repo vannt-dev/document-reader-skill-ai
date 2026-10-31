@@ -51,6 +51,11 @@ def main() -> int:
             blocks = [{"kind": "structure", "source": source_ref(payload), "data": data}]
         elif payload.get("type") in {"markdown", "pdf", "docx", "pptx", "html", "text"} and "content" in payload:
             blocks = [{"kind": "text", "source": source_ref(payload), "data": payload["content"]}]
+            # Word comments and tracked changes of the range read, when it has any.
+            blocks += [
+                {"kind": "structure", "source": {**source_ref(payload), "part": part}, "data": payload[part]}
+                for part in ("comments", "revisions") if payload.get(part)
+            ]
         elif "sheets" in payload or "outline" in payload:
             blocks = [{"kind": "structure", "source": source_ref(payload), "data": payload.get("sheets", payload.get("outline"))}]
         elif payload.get("type") == "pdf" and "pages" in payload:

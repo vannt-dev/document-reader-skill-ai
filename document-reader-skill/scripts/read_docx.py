@@ -8,20 +8,27 @@ import sys
 from pathlib import Path
 
 from common import add_output_argument, emit, require_path
-from doc_text import docx_items, docx_outline, docx_render, docx_sections
+from doc_text import docx_annotations, docx_items, docx_outline, docx_render, docx_sections
 
 
 def outline(path: Path) -> dict:
     items = docx_items(path)
-    return {
+    result = {
         "document": str(path), "type": "docx",
         "paragraph_count": len(items),
         "table_rows": sum(1 for item in items if item["kind"] == "table_row"),
         "outline": docx_outline(items),
     }
+    # Counted only when there are any, so a plain document's outline stays as it was.
+    for name, count in docx_annotations(items).items():
+        result[f"{name[:-1]}_count"] = len(count)
+    return result
 
 
-def read(path: Path, heading: str | None, start: int | None, end: int | None, max_chars: int) -> dict:
+def read(
+    path: Path, heading: str | None, start: int | None, end: int | None, max_chars: int,
+    show_changes: bool = False,
+) -> dict:
     items = docx_items(path)
     first = max(1, start or 1)
     last = min(len(items), end or len(items))
@@ -41,7 +48,7 @@ def read(path: Path, heading: str | None, start: int | None, end: int | None, ma
             if item["kind"] == "heading" and item["level"] <= selected["level"]:
                 last = item["index"] - 1
                 break
-    text = docx_render(items[first - 1:last])
+    text = docx_render(items[first - 1:last], show_changes)
     return {
         "document": str(path), "type": "docx",
         "source": {
@@ -49,6 +56,7 @@ def read(path: Path, heading: str | None, start: int | None, end: int | None, ma
             "start_paragraph": first, "end_paragraph": last,
         },
         "content": text[:max_chars], "truncated": len(text) > max_chars,
+        **docx_annotations(items[first - 1:last]),
     }
 
 
@@ -60,6 +68,10 @@ def main() -> int:
     parser.add_argument("--start-paragraph", type=int)
     parser.add_argument("--end-paragraph", type=int)
     parser.add_argument("--max-chars", type=int, default=12000)
+    parser.add_argument(
+        "--show-changes", action="store_true",
+        help="Write tracked changes into the content as {++inserted++} and {--deleted--}",
+    )
     add_output_argument(parser)
     args = parser.parse_args()
     try:
@@ -69,7 +81,9 @@ def main() -> int:
         if args.outline_only:
             emit(outline(path), args.output)
         else:
-            emit(read(path, args.heading, args.start_paragraph, args.end_paragraph, args.max_chars), args.output)
+            emit(read(
+                path, args.heading, args.start_paragraph, args.end_paragraph, args.max_chars, args.show_changes,
+            ), args.output)
         return 0
     except Exception as exc:
         print(f"error: {exc}", file=sys.stderr)

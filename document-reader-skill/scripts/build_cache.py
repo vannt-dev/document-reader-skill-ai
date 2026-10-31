@@ -106,12 +106,20 @@ def pdf_table_blocks(path: Path) -> list[dict]:
 
 
 def extract_docx(path: Path) -> list[dict]:
-    from doc_text import docx_items, docx_render, docx_sections
+    from doc_text import docx_annotations, docx_items, docx_render, docx_sections
 
     items = docx_items(path)
     blocks = []
     for section in docx_sections(items):
         title = section["title"] or "(preamble)"
+        selected = items[section["start"] - 1:section["end"]]
+        content = {"text": docx_render(selected)}
+        # Only a section with comments or tracked changes gains keys, so the blocks of
+        # other documents, and the change reports between them, stay as they were.
+        annotations = docx_annotations(selected)
+        if "revisions" in annotations:
+            content["tracked_text"] = docx_render(selected, show_changes=True)
+        content.update(annotations)
         blocks.append({
             "block_id": f"{slugify(title)}@P{section['start']}-{section['end']}",
             "ref": {
@@ -120,7 +128,7 @@ def extract_docx(path: Path) -> list[dict]:
                 "paragraphs": [section["start"], section["end"]],
             },
             "label": title,
-            "content": {"text": docx_render(items[section["start"] - 1:section["end"]])},
+            "content": content,
         })
     return blocks
 
