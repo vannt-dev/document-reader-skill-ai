@@ -38,7 +38,7 @@ Treat a request such as `Apply requirements from ./requirements` as authorizatio
    - Excel: run `scripts/inspect_excel.py`.
    - Markdown: run `scripts/read_markdown.py --outline-only`.
    - PDF: run `scripts/read_pdf.py --outline-only` (page count, bookmarks, pages without text, and `ocr_available` when there are such pages).
-   - Word: run `scripts/read_docx.py --outline-only` (headings with paragraph numbers; `comment_count` and `revision_count` when the file has comments or tracked changes).
+   - Word: run `scripts/read_docx.py --outline-only` (headings with paragraph numbers; `comment_count` (threads, replies not counted) and `revision_count` when the file has comments or tracked changes).
    - PowerPoint: run `scripts/read_pptx.py --outline-only` (slide titles, which slides have notes).
    - CSV: run `scripts/read_csv.py --outline-only` (delimiter, row and column counts, preview).
    - HTML: run `scripts/read_html.py --outline-only` (page title, headings with paragraph numbers, table row count).

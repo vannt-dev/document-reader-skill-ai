@@ -262,3 +262,19 @@ def test_command_line_prints_vietnamese_authors_on_a_non_utf8_console(tmp_path):
     result = json.loads(completed.stdout.decode("utf-8"))
     assert result["comments"][0]["author"] == "Nguyễn Văn An"
     assert "{--3--}{++5++}" in result["content"]
+
+
+def test_normalize_keeps_comments_and_changes_as_their_own_blocks(tmp_path, monkeypatch, capsys):
+    import normalize_output
+
+    source = tmp_path / "reader.json"
+    source.write_text(json.dumps(read_docx.read(reviewed_docx(tmp_path), "Login", None, None, 12000)),
+                      encoding="utf-8")
+    monkeypatch.setattr("sys.argv", ["normalize_output.py", str(source)])
+    assert normalize_output.main() == 0
+    blocks = json.loads(capsys.readouterr().out)["blocks"]
+
+    assert [(block["kind"], block["source"].get("part")) for block in blocks] == [
+        ("text", None), ("structure", "comments"), ("structure", "revisions"),
+    ]
+    assert blocks[1]["data"][0]["anchor"] == "must log in"
