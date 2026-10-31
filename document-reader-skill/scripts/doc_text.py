@@ -158,17 +158,25 @@ class _Ranges:
     """Comment ranges open while walking a document body; one can span paragraphs."""
 
     def __init__(self) -> None:
-        self.open: dict[str, list[str]] = {}
-        self.anchors: dict[str, str] = {}
+        # Per open range: the text kept once the changes are accepted, and the deleted text.
+        self.open: dict[str, tuple[list[str], list[str]]] = {}
+        self.anchors: dict[str, dict] = {}
         self.located: set[str] = set()
 
-    def text(self, text: str) -> None:
-        for parts in self.open.values():
-            parts.append(text)
+    def text(self, text: str, removed: bool = False) -> None:
+        for kept, deleted in self.open.values():
+            (deleted if removed else kept).append(text)
 
     def close(self, comment_id: str) -> None:
-        if comment_id in self.open:
-            self.anchors[comment_id] = "".join(self.open.pop(comment_id)).strip()
+        if comment_id not in self.open:
+            return
+        kept, deleted = self.open.pop(comment_id)
+        anchor = {"anchor": "".join(kept).strip()}
+        # A range that holds only deleted text (a commented word later replaced with
+        # tracking on) points at that text rather than at nothing.
+        if not anchor["anchor"] and "".join(deleted).strip():
+            anchor = {"anchor": "".join(deleted).strip(), "anchor_deleted": True}
+        self.anchors[comment_id] = anchor
 
 
 def _read_paragraph(paragraph, ranges: _Ranges) -> dict:
@@ -187,6 +195,8 @@ def _read_paragraph(paragraph, ranges: _Ranges) -> dict:
         if revision is None or revision["type"] not in REMOVED_REVISIONS:
             current.append(text)
             ranges.text(text)
+        else:
+            ranges.text(text, removed=True)
         if revision is not None:
             revision["parts"].append(text)
         if segments and segments[-1][0] is revision:
@@ -224,7 +234,7 @@ def _read_paragraph(paragraph, ranges: _Ranges) -> dict:
                     ranges.located.add(comment_id)
                     comments.append(comment_id)
                 if tag == f"{W}commentRangeStart":
-                    ranges.open.setdefault(comment_id, [])
+                    ranges.open.setdefault(comment_id, ([], []))
             elif tag == f"{W}commentRangeEnd":
                 ranges.close(child.get(f"{W}id") or "")
             else:
@@ -356,13 +366,13 @@ def _merge(target: dict, source: dict, before: bool) -> None:
 
 
 def _finish(item: dict, comments: dict[str, dict], parents: dict[str, str],
-            anchors: dict[str, str]) -> None:
+            anchors: dict[str, dict]) -> None:
     """Resolve comment ids into threads; drop the annotation keys an item does not need."""
     threads = []
     for comment_id in item.pop("comments"):
         if comment_id not in comments or parents.get(comment_id) in comments:
             continue  # unknown, or a reply: replies sit under their parent
-        thread = {**comments[comment_id], "anchor": anchors.get(comment_id, "")}
+        thread = {**comments[comment_id], **anchors.get(comment_id, {"anchor": ""})}
         replies = [dict(comments[reply]) for reply, parent in parents.items()
                    if parent == comment_id and reply in comments]
         if replies:

@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A Word comment on words that were then replaced with tracking on had an empty `anchor`:
+  Word leaves only the deleted words inside the comment. It now gives those words, with
+  `anchor_deleted: true`.
+
 ## [1.4.0] - 2026-10-31
 
 Reads Word comments and tracked changes: `read_docx.py` and the cache give each section's

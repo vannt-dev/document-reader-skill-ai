@@ -181,6 +181,42 @@ def test_deleted_paragraph_before_any_text_goes_to_the_first_item(tmp_path):
     assert items[0]["marked"] == "{--Draft--}\nScope"
 
 
+def test_comment_on_text_that_was_then_replaced_anchors_to_the_deleted_text(tmp_path):
+    # How Word saves a commented word replaced with tracking on: the insertion lands
+    # before the comment range, which then holds only the deletion.
+    body = (
+        "<w:p>" + run("Links expire after ")
+        + revision("ins", "Lan", "2026-10-01T08:00:00Z", run("15 minutes"), 1)
+        + '<w:commentRangeStart w:id="0"/>'
+        + revision("del", "Lan", "2026-10-01T08:00:00Z", run("30 minutes", "delText"), 2)
+        + '<w:commentRangeEnd w:id="0"/>' + reference("0") + run(".") + "</w:p>"
+    )
+    parts = {"word/comments.xml": comments_part(
+        comment("0", "An", "2026-10-01T07:00:00Z", "From when?", "1A2B0001"))}
+    items = doc_text.docx_items(write_docx(tmp_path / "replaced.docx", body, "", parts))
+
+    assert items[0]["text"] == "Links expire after 15 minutes."
+    assert items[0]["comments"] == [{
+        "id": "0", "author": "An", "date": "2026-10-01T07:00:00Z", "text": "From when?",
+        "anchor": "30 minutes", "anchor_deleted": True,
+    }]
+
+
+def test_comment_over_kept_and_deleted_text_anchors_to_the_kept_text(tmp_path):
+    body = (
+        "<w:p>" + '<w:commentRangeStart w:id="0"/>' + run("Lock after ")
+        + revision("del", "Lan", "2026-10-01T08:00:00Z", run("3", "delText"), 1)
+        + revision("ins", "Lan", "2026-10-01T08:00:00Z", run("5"), 2)
+        + '<w:commentRangeEnd w:id="0"/>' + reference("0") + "</w:p>"
+    )
+    parts = {"word/comments.xml": comments_part(
+        comment("0", "An", "2026-10-01T07:00:00Z", "Why 5?", "1A2B0001"))}
+    items = doc_text.docx_items(write_docx(tmp_path / "mixed.docx", body, "", parts))
+
+    assert items[0]["comments"][0]["anchor"] == "Lock after 5"
+    assert "anchor_deleted" not in items[0]["comments"][0]
+
+
 def test_document_without_comments_or_changes_has_no_new_keys(sample_docx):
     items = doc_text.docx_items(sample_docx)
 
