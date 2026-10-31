@@ -6,11 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-10-31
+
+Fixes the anchor of a Word comment on words replaced with tracking on.
+
 ### Fixed
 
 - A Word comment on words that were then replaced with tracking on had an empty `anchor`:
   Word leaves only the deleted words inside the comment. It now gives those words, with
-  `anchor_deleted: true`.
+  `anchor_deleted: true`. ([#23](https://github.com/vannt-dev/document-reader-skill-ai/pull/23))
 
 ## [1.4.0] - 2026-10-31
 
@@ -130,7 +134,8 @@ First tagged release of the Document Reader skill.
 - Setup scripts for Windows, Linux and macOS that install the skill for Codex,
   Claude Code and Gemini CLI.
 
-[Unreleased]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.4.1...HEAD
+[1.4.1]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.1.0...v1.2.0
