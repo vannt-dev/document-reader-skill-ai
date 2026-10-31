@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-31
+
+Reads Word comments and tracked changes: `read_docx.py` and the cache give each section's
+comments and changes, and `--show-changes` marks the changes in the text.
+
 ### Added
 
 - Word comments and tracked changes. `read_docx.py` and the cache now give a section's
@@ -15,13 +20,16 @@ All notable changes to this project are documented here. The format follows
   text as `{++inserted++}` and `{--deleted--}`; the outline counts both. A document without
   comments or tracked changes reads exactly as before, so its cache does not change. To add
   them to a cache built earlier, run `build_cache.py --force`.
+  ([#21](https://github.com/vannt-dev/document-reader-skill-ai/pull/21))
 
 ### Changed
 
 - Word text left behind by a tracked move or deletion is no longer read: a move stored as
   ordinary text at its old place, and tabs or line breaks inside deleted text. The next
   cache build of such a document reports the section as changed.
+  ([#21](https://github.com/vannt-dev/document-reader-skill-ai/pull/21))
 - Cache searches skip a Word comment's or change's date and paragraph number.
+  ([#21](https://github.com/vannt-dev/document-reader-skill-ai/pull/21))
 
 ## [1.3.0] - 2026-10-29
 
@@ -116,7 +124,8 @@ First tagged release of the Document Reader skill.
 - Setup scripts for Windows, Linux and macOS that install the skill for Codex,
   Claude Code and Gemini CLI.
 
-[Unreleased]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.0.0...v1.1.0
