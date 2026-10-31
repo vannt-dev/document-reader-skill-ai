@@ -44,8 +44,13 @@ Project code changes + tests
 ```
 
 Định dạng đọc được: Excel (`.xlsx`, `.xlsm`), CSV (`.csv`, `.tsv`), Markdown,
-PDF (kể cả bảng, và trang scan qua OCR), Word (`.docx`), PowerPoint (`.pptx`),
+PDF (kể cả bảng, và trang scan qua OCR), Word (`.docx`, kể cả comment và track
+changes), PowerPoint (`.pptx`),
 HTML (`.html`, `.htm`, ví dụ bản export Confluence/wiki) và text (`.txt`).
+
+Word được đọc như khi đã chấp nhận mọi thay đổi track changes; comment (kèm trả lời
+và trạng thái đã resolve) cùng các phần chèn, xóa, di chuyển được trả về riêng, mỗi
+mục có tác giả, ngày và số đoạn.
 
 Coding agent là thành phần sửa project. Các script của skill chỉ đọc và chuẩn
 hóa tài liệu. Adapter OpenAI/Anthropic/Gemini là tùy chọn dành cho phân tích API

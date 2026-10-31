@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Word comments and tracked changes. `read_docx.py` and the cache now give a section's
+  `comments` (author, date, text, the anchored words, replies, resolved) and `revisions`
+  (inserted, deleted, moved text with author and date), each with its paragraph number.
+  `read_docx.py --show-changes`, and `tracked_text` in the cache, write the changes into the
+  text as `{++inserted++}` and `{--deleted--}`; the outline counts both. A document without
+  comments or tracked changes reads exactly as before, so its cache does not change. To add
+  them to a cache built earlier, run `build_cache.py --force`.
+
+### Changed
+
+- Word text left behind by a tracked move or deletion is no longer read: a move stored as
+  ordinary text at its old place, and tabs or line breaks inside deleted text. The next
+  cache build of such a document reports the section as changed.
+- Cache searches skip a Word comment's or change's date and paragraph number.
+
 ## [1.3.0] - 2026-10-29
 
 Ranks cache searches: multi-word queries now match all words anywhere and are ranked;

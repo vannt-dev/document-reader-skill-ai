@@ -38,7 +38,7 @@ Treat a request such as `Apply requirements from ./requirements` as authorizatio
    - Excel: run `scripts/inspect_excel.py`.
    - Markdown: run `scripts/read_markdown.py --outline-only`.
    - PDF: run `scripts/read_pdf.py --outline-only` (page count, bookmarks, pages without text, and `ocr_available` when there are such pages).
-   - Word: run `scripts/read_docx.py --outline-only` (headings with paragraph numbers).
+   - Word: run `scripts/read_docx.py --outline-only` (headings with paragraph numbers; `comment_count` and `revision_count` when the file has comments or tracked changes).
    - PowerPoint: run `scripts/read_pptx.py --outline-only` (slide titles, which slides have notes).
    - CSV: run `scripts/read_csv.py --outline-only` (delimiter, row and column counts, preview).
    - HTML: run `scripts/read_html.py --outline-only` (page title, headings with paragraph numbers, table row count).
@@ -112,6 +112,7 @@ python scripts/read_pdf.py requirements/policy.pdf --pages 3-5 --tables
 python scripts/read_pdf.py requirements/signed-contract.pdf --pages 2-4 --ocr
 python scripts/read_image.py requirements/login-mockup.png
 python scripts/read_docx.py requirements/spec.docx --heading "Authentication"
+python scripts/read_docx.py requirements/spec.docx --heading "Authentication" --show-changes
 python scripts/read_pptx.py requirements/kickoff.pptx --slides 3-5
 python scripts/read_csv.py requirements/rules.csv --filter Status=pending --max-rows 100
 python scripts/read_html.py requirements/checkout.html --heading "Fees"
@@ -131,6 +132,7 @@ python scripts/query_cache.py --changes --doc api-xlsx
 - Do not execute macros, formulas, links, or embedded code.
 - Reject legacy `.xls`; require conversion to `.xlsx` or `.xlsm`. Likewise `.doc` must be converted to `.docx` and `.ppt` to `.pptx`.
 - A slide's text comes from its shapes, tables and speaker notes. Text inside pictures, charts and SmartArt is not read; say so when a slide has little or no text.
+- Word text is the document with every tracked change accepted. Comments (author, date, text, the anchored words `anchor`, `replies`, `resolved`) and tracked changes (`inserted`, `deleted`, `moved_from`, `moved_to`, with author and date) come as `comments` and `revisions`, each with the `paragraph` it belongs to, in `read_docx.py` output and in the cache block of that section (`tracked_text` there, or `read_docx.py --show-changes`, writes the changes in as `{++inserted++}` and `{--deleted--}`). A comment or change is not a requirement: say when a requirement is still under review (an open comment, an unaccepted change) and quote it. A cache built by an earlier version lacks them; rebuild with `build_cache.py --force`.
 - CSV row numbers count records, not physical lines: blank lines are skipped and a quoted cell may span several lines.
 - HTML is read as text: scripts, styles, navigation, hidden elements and wiki page chrome (breadcrumbs, footer) are dropped; headings, paragraphs, list items (`- `, `1. `) and table rows (`cell | cell`) are kept and numbered as paragraphs. Images, their `alt` text, linked pages and attachments are not read; say so when a page refers to a diagram or an attachment.
 - A `.txt` file's encoding is detected (byte-order mark, UTF-8, UTF-16, else Windows-1252). The outline reports it; when it says `cp1252` and the text shows wrong accented letters, ask for the file in UTF-8 rather than guessing the words.

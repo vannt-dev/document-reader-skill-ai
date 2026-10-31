@@ -55,10 +55,14 @@ analysis through an API, and cannot touch the file system.
 | CSV | `.csv`, `.tsv` | cell |
 | Markdown | `.md`, `.markdown` | heading and line |
 | PDF | `.pdf`, with tables, and scanned pages through OCR | page |
-| Word | `.docx` | heading and paragraph |
+| Word | `.docx`, with comments and tracked changes | heading and paragraph |
 | PowerPoint | `.pptx` | slide |
 | HTML | `.html`, `.htm`, such as Confluence or wiki exports | heading and paragraph |
 | Plain text | `.txt` | line |
+
+Word text is read with every tracked change accepted; the comments (with replies and
+whether they are resolved) and the tracked insertions, deletions and moves come
+alongside, each with its author, date and paragraph.
 
 Legacy `.xls`, `.doc` and `.ppt` files must be saved in the newer format first.
 Pictures (`.png`, `.jpg`, ...) can be read one at a time with OCR but are not indexed.

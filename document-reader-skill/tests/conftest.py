@@ -30,11 +30,16 @@ def sample_xlsx(tmp_path):
 W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
 
-def write_docx(path, body_xml, styles_xml=None):
-    """Write a minimal .docx: only the parts the reader looks at."""
+def write_docx(path, body_xml, styles_xml=None, parts=None):
+    """Write a minimal .docx: only the parts the reader looks at.
+
+    `parts` maps further part names (word/comments.xml ...) to their XML.
+    """
     import zipfile
 
     with zipfile.ZipFile(path, "w") as archive:
+        for name, xml in (parts or {}).items():
+            archive.writestr(name, xml)
         archive.writestr(
             "word/document.xml",
             f'<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="{W_NS}"><w:body>{body_xml}</w:body></w:document>',

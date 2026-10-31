@@ -34,13 +34,20 @@ def _manifest_hashes(cache_dir: Path) -> dict[str, str]:
     return {doc["path"]: doc.get("sha256", "") for doc in manifest.get("documents", [])}
 
 
+UNSEARCHED_KEYS = {"row", "paragraph", "date", "tracked_text"}
+
+
 def _text_values(content) -> list[str]:
     """The words a block holds: its strings and numbers, not key names or JSON escapes.
 
-    A table row's `row` number is where the row sits, not what it says, so it is left out.
+    A table row's `row` number is where the row sits, not what it says, so it is left out;
+    so are a Word comment's or change's paragraph number and date, and `tracked_text`,
+    which repeats the text (the deleted words are in `revisions`).
     """
     if isinstance(content, dict):
-        return [text for key, value in content.items() if key != "row" for text in _text_values(value)]
+        return [
+            text for key, value in content.items() if key not in UNSEARCHED_KEYS for text in _text_values(value)
+        ]
     if isinstance(content, list):
         return [text for value in content for text in _text_values(value)]
     if isinstance(content, bool) or content is None:
