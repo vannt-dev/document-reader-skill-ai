@@ -232,7 +232,8 @@ python -m pip install openpyxl pypdf
 ```
 
 Word được đọc như khi đã chấp nhận mọi track changes. Comment (tác giả, ngày, nội dung,
-đoạn được comment `anchor`, `replies`, `resolved`) và thay đổi (`inserted`, `deleted`,
+đoạn được comment `anchor`, hoặc chữ đã bị xoá kèm `anchor_deleted` nếu track changes xoá hết
+đoạn đó, `replies`, `resolved`) và thay đổi (`inserted`, `deleted`,
 `moved_from`, `moved_to`) nằm trong `comments` / `revisions` của `read_docx.py` và của block
 cache, mỗi mục có `paragraph` để trích dẫn; `tracked_text` trong cache (hoặc
 `read_docx.py --show-changes`) ghi thay đổi vào văn bản dạng `{++chèn++}` và `{--xóa--}`.
