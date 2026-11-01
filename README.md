@@ -31,16 +31,31 @@ Once it is installed, a folder name is enough:
 Apply requirements from ./requirements
 ```
 
-```text
-Local requirements
-        ↓
-Document Reader scripts (inspect/search/extract)
-        ↓
-Relevant evidence with source references
-        ↓
-Host coding agent (Codex, Claude Code, Gemini CLI, ...)
-        ↓
-Project code changes + tests
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 300}}}%%
+flowchart TB
+  subgraph read["Document Reader scripts: read only"]
+    direction LR
+    docs["Requirements folder<br/>Word, PDF, Excel, PowerPoint,<br/>Markdown, CSV, HTML, text"]
+    scan["Index and normalize<br/>each document once"]
+    cache[".document-reader/<br/>manifest, cache, index"]
+    evidence["query_cache.py: only the<br/>blocks needed, with their ID<br/>Requirements!A1:F40, page-3"]
+    changes["query_cache.py --changes<br/>what an edit added,<br/>changed and removed"]
+    docs --> scan --> cache
+    cache --> evidence
+    cache --> changes
+  end
+  subgraph act["Host coding agent: Codex, Claude Code, Gemini CLI"]
+    direction LR
+    ask["Apply requirements<br/>from ./requirements"]
+    agent["Maps requirements<br/>to the code"]
+    code["Code changes<br/>and tests"]
+    knowledge["knowledge.md<br/>requirements, mapping,<br/>status"]
+    ask --> agent
+    agent --> code
+    agent --> knowledge
+  end
+  read -->|"reduced evidence"| act
 ```
 
 The coding agent is what changes the project. The skill's scripts only read and
