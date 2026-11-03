@@ -4,10 +4,6 @@ on:
   push:
     branches: [main]
   pull_request:
-    paths-ignore:
-      - '*.md'
-      - 'docs/**'
-      - LICENSE
 
 permissions:
   contents: read
@@ -57,3 +53,21 @@ jobs:
           sh -n setup-document-reader.sh
           sh -n setup-python-env.sh
           sh -n setup-ocr.sh
+
+  # The one check branch protection requires: it passes when every job above passed or was
+  # skipped, and fails on a failure or a cancellation.
+  ci-result:
+    name: CI result
+    if: always()
+    needs: [test, scripts]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every job passed or was skipped
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "job results: $RESULTS"
+          case " $RESULTS " in
+            *" failure "*|*" cancelled "*) exit 1 ;;
+          esac
