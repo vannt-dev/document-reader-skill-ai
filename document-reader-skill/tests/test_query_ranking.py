@@ -184,3 +184,17 @@ def test_cli_rejects_ranking_options_with_changes(cache_dir):
         completed = _cli("--changes", "--cache-dir", str(cache_dir), *extra)
         assert completed.returncode == 2, extra
         assert "--changes" in completed.stderr
+
+
+def test_an_identifier_does_not_match_a_longer_one(tmp_path):
+    cache_dir = _seed(tmp_path / ".document-reader", [
+        _block("r1", "API", "REQ-1", "Login endpoint"),
+        _block("r10", "API", "REQ-10", "Logout endpoint, see REQ-12"),
+        _block("r11", "API", "REQ-11", "Depends on REQ-1."),
+    ])
+    for match in ("all", "any", "phrase"):
+        assert ids(query_cache.query(cache_dir, keyword="REQ-1", match=match)) == ["r1", "r11"]
+    assert ids(query_cache.query(cache_dir, keyword="req-1 login")) == ["r1"]
+    assert ids(query_cache.query(cache_dir, keyword="REQ-1", explain=True))
+    scores = [r["score"]["weight"] for r in query_cache.query(cache_dir, keyword="REQ", explain=True)["results"]]
+    assert len(scores) == 3  # a word without digits still matches inside longer text

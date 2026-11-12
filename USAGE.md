@@ -136,7 +136,8 @@ Tùy chọn:
 ### 3.3. Query — context sau kéo đúng block, KHÔNG parse lại Excel/MD
 ```bash
 # Theo từ khoá (trên nhãn + nội dung). Gõ không dấu thì khớp cả chữ có dấu
-# ("dang nhap" ra "Đăng nhập"); gõ có dấu thì phải đúng dấu.
+# ("dang nhap" ra "Đăng nhập"); gõ có dấu thì phải đúng dấu. Mã có chữ số khớp
+# nguyên mã: "REQ-1" không ra "REQ-10".
 "$PY" "$SKILL/scripts/query_cache.py" "authentication" --max-results 25
 
 # Nhiều từ: block chứa đủ mọi từ, khớp nhất lên đầu (nhiều từ hơn, rồi cụm từ liền nhau,

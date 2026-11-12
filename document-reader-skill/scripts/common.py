@@ -29,13 +29,38 @@ def text_matcher(query: str, regex: bool = False, case_sensitive: bool = False):
         pattern = re.compile(query if regex else re.escape(query), 0 if case_sensitive else re.IGNORECASE)
         return pattern.search
     needle, normalize = _needle(query)
+    pattern = _whole_identifiers(needle)
+    if pattern:
+        return lambda text: pattern.search(normalize(text)) is not None
     return lambda text: needle in normalize(text)
 
 
 def text_counter(query: str):
     """How many times a text holds the query, under the same accent rule as `text_matcher`."""
     needle, normalize = _needle(query)
+    pattern = _whole_identifiers(needle)
+    if pattern:
+        return lambda text: len(pattern.findall(normalize(text)))
     return lambda text: normalize(text).count(needle)
+
+
+def _whole_identifiers(needle: str):
+    """A pattern for a query that starts or ends with an identifier, a word holding a digit
+    (`REQ-1`, `FR-3.1`, `v2`), so that it does not match inside a longer one: `REQ-1` is not
+    found in `REQ-10`. Other words still match inside longer ones; None when there are none."""
+    words = needle.split()
+    if not words:
+        return None
+    alnum = r"[^\W_]"
+    before = rf"(?<!{alnum})" if _is_identifier(words[0]) and needle[0].isalnum() else ""
+    after = rf"(?!{alnum})" if _is_identifier(words[-1]) and needle[-1].isalnum() else ""
+    if not (before or after):
+        return None
+    return re.compile(before + re.escape(needle) + after)
+
+
+def _is_identifier(word: str) -> bool:
+    return any(char.isdigit() for char in word)
 
 
 def _needle(query: str):

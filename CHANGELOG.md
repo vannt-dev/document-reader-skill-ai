@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A search for an ID no longer finds longer IDs that start with it: `REQ-1` matched and scored
+  `REQ-10` to `REQ-19`. A word holding a digit now matches only as a whole; other words still
+  match inside longer ones. ([#27](https://github.com/vannt-dev/document-reader-skill-ai/pull/27))
+
 ## [1.4.1] - 2026-10-31
 
 Fixes the anchor of a Word comment on words replaced with tracking on.

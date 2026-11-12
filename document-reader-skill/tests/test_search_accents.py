@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 import query_cache
-from common import fold_text, text_matcher
+from common import fold_text, text_counter, text_matcher
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 
@@ -69,3 +69,26 @@ def test_query_cache_label_filter_ignores_accents_when_none_are_typed(tmp_path):
     (cache_dir / "index.json").write_text(json.dumps({"documents": [{"doc_id": "doc", "path": "doc.md", "sha256": "h"}]}),
                                           encoding="utf-8")
     assert [r["block_id"] for r in query_cache.query(cache_dir, label="dang nhap")["results"]] == ["b1"]
+
+
+@pytest.mark.parametrize("query, text, found", [
+    ("REQ-1", "REQ-1: login", True),
+    ("REQ-1", "see REQ-1.", True),
+    ("REQ-1", "REQ-10", False),
+    ("REQ-1", "XREQ-1", False),
+    ("req-1", "Req-1", True),
+    ("FR-3.1", "FR-3.12", False),
+    ("FR-3.1", "FR-3.1 Thanh toán", True),
+    ("v2", "api v2/users", True),
+    ("REQ", "REQ-10", True),  # a word without digits matches inside a longer one, as before
+    ("login", "logins", True),
+    ("mục 1", "Mục 1 đăng nhập", True),
+    ("muc 1", "Mục 10", False),
+])
+def test_identifiers_match_whole_not_inside_longer_ones(query, text, found):
+    assert bool(text_matcher(query)(text)) is found
+    assert (text_counter(query)(text) > 0) is found
+
+
+def test_text_counter_counts_whole_identifiers():
+    assert text_counter("REQ-1")("REQ-1, REQ-10, REQ-11 and REQ-1") == 2
