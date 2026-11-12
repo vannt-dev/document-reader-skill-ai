@@ -47,13 +47,16 @@ def text_counter(query: str):
 def _whole_identifiers(needle: str):
     """A pattern for a query that starts or ends with an identifier, a word holding a digit
     (`REQ-1`, `FR-3.1`, `v2`), so that it does not match inside a longer one: `REQ-1` is not
-    found in `REQ-10`. Other words still match inside longer ones; None when there are none."""
+    found in `REQ-10`. A number ending the query may still be followed by letters (`10` finds
+    `10MB`). Other words still match inside longer ones; None when there are none."""
     words = needle.split()
     if not words:
         return None
-    alnum = r"[^\W_]"
-    before = rf"(?<!{alnum})" if _is_identifier(words[0]) and needle[0].isalnum() else ""
-    after = rf"(?!{alnum})" if _is_identifier(words[-1]) and needle[-1].isalnum() else ""
+    before = after = ""
+    if _is_identifier(words[0]) and needle[0].isalnum():
+        before = r"(?<!\d)" if needle[0].isdigit() else r"(?<![^\W_])"
+    if _is_identifier(words[-1]) and needle[-1].isalnum():
+        after = r"(?!\d)" if needle[-1].isdigit() else r"(?![^\W_])"
     if not (before or after):
         return None
     return re.compile(before + re.escape(needle) + after)

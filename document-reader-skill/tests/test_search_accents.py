@@ -80,6 +80,8 @@ def test_query_cache_label_filter_ignores_accents_when_none_are_typed(tmp_path):
     ("FR-3.1", "FR-3.12", False),
     ("FR-3.1", "FR-3.1 Thanh toán", True),
     ("v2", "api v2/users", True),
+    ("10", "10MB", True),  # a number may be followed by its unit
+    ("10", "110", False),
     ("REQ", "REQ-10", True),  # a word without digits matches inside a longer one, as before
     ("login", "logins", True),
     ("mục 1", "Mục 1 đăng nhập", True),
