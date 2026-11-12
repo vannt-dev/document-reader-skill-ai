@@ -45,6 +45,7 @@ Treat a request such as `Apply requirements from ./requirements` as authorizatio
    - Plain text: run `scripts/read_txt.py --outline-only` (detected encoding, line count, `#` headings if any).
 3. Search unknown locations with `scripts/search_document.py`. A query typed without accents also
    matches accented text (`dang nhap` finds "Đăng nhập"); one typed with accents matches them as written.
+   An ID or other word holding a digit matches only as a whole: `REQ-1` does not find `REQ-10`.
 4. Read only relevant Excel ranges, filtered rows, Markdown headings or line ranges, PDF page ranges (`--pages 3-5`), Word headings and paragraph ranges, PowerPoint slide ranges (`--slides 3-5`), CSV row ranges and `--filter HEADER=VALUE`, HTML headings and paragraph ranges, or plain-text headings and line ranges.
 5. Start with `--max-rows 100` or `--max-chars 12000`; widen only when evidence is insufficient.
 6. Normalize extracted content with `scripts/normalize_output.py` when a stable handoff artifact is useful.
