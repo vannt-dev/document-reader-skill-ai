@@ -13,6 +13,7 @@ All notable changes to this project are documented here. The format follows
   ("3 open of 7 threads"). `--comments --unresolved` keeps only the threads that are still
   open. A file that does not record resolved comments (older Word, LibreOffice, a Google Docs
   export) lists every comment as open and says so in `note`. The normal read is unchanged.
+  ([#29](https://github.com/vannt-dev/document-reader-skill-ai/pull/29))
 
 ## [1.4.2] - 2026-11-13
 
