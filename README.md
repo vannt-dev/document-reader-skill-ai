@@ -78,6 +78,7 @@ analysis through an API, and cannot touch the file system.
 Word text is read with every tracked change accepted; the comments (with replies and
 whether they are resolved) and the tracked insertions, deletions and moves come
 alongside, each with its author, date and paragraph.
+`read_docx.py --comments --unresolved` lists only the comment threads that are still open.
 
 Legacy `.xls`, `.doc` and `.ppt` files must be saved in the newer format first.
 Pictures (`.png`, `.jpg`, ...) can be read one at a time with OCR but are not indexed.

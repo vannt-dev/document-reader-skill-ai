@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- `read_docx.py --comments` lists only the comment threads of a Word document, a heading or a
+  paragraph range, each with `resolved: true|false` and its replies, plus a count
+  ("3 open of 7 threads"). `--comments --unresolved` keeps only the threads that are still
+  open. A file that does not record resolved comments (older Word, LibreOffice, a Google Docs
+  export) lists every comment as open and says so in `note`. The normal read is unchanged.
+
 ## [1.4.2] - 2026-11-13
 
 An ID search finds only that ID.

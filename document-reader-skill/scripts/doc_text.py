@@ -447,6 +447,42 @@ def docx_annotations(items: list[dict]) -> dict:
     return result
 
 
+NO_COMMENT_STATE = (
+    "This file does not record whether a comment is resolved or which comment a reply answers "
+    "(no word/commentsExtended.xml: older Word, LibreOffice or a Google Docs export), "
+    "so every comment is listed as its own open thread."
+)
+
+
+def docx_has_comment_state(path: Path) -> bool:
+    """Whether the file records resolved comments and replies (word/commentsExtended.xml)."""
+    with zipfile.ZipFile(path) as archive:
+        return _read_part(archive, "word/commentsExtended.xml") is not None
+
+
+def docx_threads(items: list[dict], unresolved_only: bool = False) -> dict:
+    """The comment threads of a run of items, each saying whether it is resolved.
+
+    A thread is resolved when its first comment is: a reply does not reopen or close it.
+    The counts cover every thread of the items, also when only the open ones are listed.
+    """
+    threads = []
+    for thread in docx_annotations(items).get("comments", []):
+        replies = thread.pop("replies", [])
+        thread = {**thread, "resolved": bool(thread.get("resolved"))}
+        if replies:
+            thread["replies"] = [
+                {key: value for key, value in reply.items() if key != "resolved"} for reply in replies
+            ]
+        threads.append(thread)
+    open_threads = [thread for thread in threads if not thread["resolved"]]
+    return {
+        "summary": f"{len(open_threads)} open of {len(threads)} thread{'' if len(threads) == 1 else 's'}",
+        "thread_count": len(threads), "open_count": len(open_threads),
+        "comments": open_threads if unresolved_only else threads,
+    }
+
+
 def docx_outline(items: list[dict]) -> list[dict]:
     return [
         {"level": item["level"], "title": item["text"], "paragraph": item["index"]}

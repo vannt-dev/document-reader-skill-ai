@@ -239,6 +239,14 @@ cache, mỗi mục có `paragraph` để trích dẫn; `tracked_text` trong cach
 `read_docx.py --show-changes`) ghi thay đổi vào văn bản dạng `{++chèn++}` và `{--xóa--}`.
 Tài liệu không có comment hay track changes cho kết quả y như trước.
 
+Để xem phần review còn mở, chạy `read_docx.py --comments --unresolved` (cả tài liệu, hoặc kèm
+`--heading` / khoảng đoạn): chỉ liệt kê các thread chưa resolve, trả lời nằm dưới comment đầu,
+mỗi thread có `resolved: true|false`, kèm `summary` ("3 open of 7 threads"), `thread_count` và
+`open_count`. `--comments` không kèm `--unresolved` liệt kê mọi thread. Thread được coi là đã
+resolve khi comment đầu của nó đã resolve. File không ghi trạng thái này (Word cũ, LibreOffice,
+bản export Google Docs) thì mọi comment được liệt kê là một thread còn mở, và `note` nói rõ
+điều đó. Hiện chỉ áp dụng cho Word.
+
 Markdown, `.docx`, `.pptx`, `.csv`/`.tsv`, `.html`/`.htm` và `.txt` chỉ dùng thư viện chuẩn. `.xls` cũ cần được chuyển sang `.xlsx`, `.doc` cũ sang `.docx`, `.ppt` cũ sang `.pptx`.
 PDF scan không có lớp chữ không đọc được (skill không làm OCR).
 
@@ -323,6 +331,7 @@ python scripts/read_markdown.py requirements/business.md --heading "Authenticati
 python scripts/read_pdf.py requirements/policy.pdf --pages 3-5 --output extracted.json
 python scripts/read_docx.py requirements/spec.docx --heading "Authentication" --output extracted.json
 python scripts/read_docx.py requirements/spec.docx --heading "Authentication" --show-changes   # ghi track changes vào nội dung
+python scripts/read_docx.py requirements/spec.docx --comments --unresolved   # chỉ các thread comment chưa resolve
 python scripts/read_pptx.py requirements/kickoff.pptx --slides 3-5 --output extracted.json
 python scripts/read_csv.py requirements/rules.csv --filter Status=pending --output extracted.json
 python scripts/read_html.py requirements/checkout.html --heading "Fees" --output extracted.json
