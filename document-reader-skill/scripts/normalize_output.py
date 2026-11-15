@@ -56,6 +56,10 @@ def main() -> int:
                 {"kind": "structure", "source": {**source_ref(payload), "part": part}, "data": payload[part]}
                 for part in ("comments", "revisions") if payload.get(part)
             ]
+        elif payload.get("type") == "docx" and "thread_count" in payload:
+            # read_docx.py --comments: the threads alone, with the open count.
+            data = {key: payload[key] for key in ("summary", "thread_count", "open_count", "comments")}
+            blocks = [{"kind": "structure", "source": {**source_ref(payload), "part": "comments"}, "data": data}]
         elif "sheets" in payload or "outline" in payload:
             blocks = [{"kind": "structure", "source": source_ref(payload), "data": payload.get("sheets", payload.get("outline"))}]
         elif payload.get("type") == "pdf" and "pages" in payload:
@@ -69,6 +73,8 @@ def main() -> int:
         if payload.get("pages_without_text"):
             pages = ", ".join(str(page) for page in payload["pages_without_text"])
             warnings.append(f"No text could be extracted from page(s) {pages}; they may be scanned images.")
+        if payload.get("note"):
+            warnings.append(payload["note"])
         emit({
             "schema_version": "1.0", "query": args.query,
             "documents": [{"path": payload.get("document", ""), "type": payload.get("type", "unknown")}],

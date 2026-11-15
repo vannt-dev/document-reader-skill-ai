@@ -189,6 +189,7 @@ lệnh trả về `no_previous_version`.
 | Outline Word | `read_docx.py requirements/spec.docx --outline-only` |
 | Đọc một mục Word | `read_docx.py requirements/spec.docx --heading "Authentication"` |
 | Đọc một mục Word, ghi track changes vào nội dung (`{++chèn++}`, `{--xóa--}`) | `read_docx.py requirements/spec.docx --heading "Authentication" --show-changes` |
+| Liệt kê comment Word chưa resolve (kèm số thread còn mở) | `read_docx.py requirements/spec.docx --comments --unresolved` |
 | Outline PowerPoint (tiêu đề từng slide) | `read_pptx.py requirements/kickoff.pptx --outline-only` |
 | Đọc vài slide, kèm ghi chú diễn giả | `read_pptx.py requirements/kickoff.pptx --slides 3-5` |
 | Xem cấu trúc CSV | `read_csv.py requirements/rules.csv --outline-only` |
@@ -248,7 +249,9 @@ Hai tầng lưu trữ:
 - PDF hoặc Word đặt mật khẩu không đọc được; cần gỡ mật khẩu trước.
 - Word: nội dung là bản đã chấp nhận mọi track changes. Comment và thay đổi chưa chấp nhận
   nằm trong `comments` / `revisions` (tác giả, ngày, số đoạn); đó là phần đang review, chưa
-  phải requirement chốt. Cache tạo bằng bản cũ chưa có chúng: chạy lại `build_cache.py --force`.
+  phải requirement chốt. `read_docx.py --comments --unresolved` chỉ liệt kê các thread
+  chưa resolve; file không ghi trạng thái resolve (Word cũ, LibreOffice, export Google Docs)
+  thì mọi comment được coi là còn mở và kết quả có `note` nói rõ. Cache tạo bằng bản cũ chưa có chúng: chạy lại `build_cache.py --force`.
 - Không gọi API bên ngoài nếu bạn chưa cho phép gửi dữ liệu (chế độ External API là tùy chọn).
 - Không báo "đã triển khai" nếu chưa sửa code và chạy validation phù hợp.
 - Báo rõ khi dữ liệu bị truncate, thiếu, xung đột hoặc chưa rõ.

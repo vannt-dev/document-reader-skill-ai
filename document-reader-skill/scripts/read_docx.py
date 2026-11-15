@@ -8,7 +8,10 @@ import sys
 from pathlib import Path
 
 from common import add_output_argument, emit, require_path
-from doc_text import docx_annotations, docx_items, docx_outline, docx_render, docx_sections
+from doc_text import (
+    NO_COMMENT_STATE, docx_annotations, docx_has_comment_state, docx_items, docx_outline, docx_render,
+    docx_sections, docx_threads,
+)
 
 
 def outline(path: Path) -> dict:
@@ -25,10 +28,10 @@ def outline(path: Path) -> dict:
     return result
 
 
-def read(
-    path: Path, heading: str | None, start: int | None, end: int | None, max_chars: int,
-    show_changes: bool = False,
-) -> dict:
+def _select(
+    path: Path, heading: str | None, start: int | None, end: int | None,
+) -> tuple[list[dict], dict]:
+    """The items of a heading section or paragraph range, and the `source` naming it."""
     items = docx_items(path)
     first = max(1, start or 1)
     last = min(len(items), end or len(items))
@@ -48,16 +51,38 @@ def read(
             if item["kind"] == "heading" and item["level"] <= selected["level"]:
                 last = item["index"] - 1
                 break
-    text = docx_render(items[first - 1:last], show_changes)
+    return items[first - 1:last], {
+        "heading": {"title": selected["title"], "level": selected["level"]} if selected else None,
+        "start_paragraph": first, "end_paragraph": last,
+    }
+
+
+def read(
+    path: Path, heading: str | None, start: int | None, end: int | None, max_chars: int,
+    show_changes: bool = False,
+) -> dict:
+    items, source = _select(path, heading, start, end)
+    text = docx_render(items, show_changes)
     return {
         "document": str(path), "type": "docx",
-        "source": {
-            "heading": {"title": selected["title"], "level": selected["level"]} if selected else None,
-            "start_paragraph": first, "end_paragraph": last,
-        },
+        "source": source,
         "content": text[:max_chars], "truncated": len(text) > max_chars,
-        **docx_annotations(items[first - 1:last]),
+        **docx_annotations(items),
     }
+
+
+def comments(
+    path: Path, heading: str | None, start: int | None, end: int | None, unresolved_only: bool = False,
+) -> dict:
+    """The comment threads of the whole document, a heading section or a paragraph range."""
+    items, source = _select(path, heading, start, end)
+    threads = docx_threads(items, unresolved_only)
+    result = {"document": str(path), "type": "docx", "source": source, **threads}
+    if unresolved_only:
+        result["unresolved_only"] = True
+    if threads["thread_count"] and not docx_has_comment_state(path):
+        result["note"] = NO_COMMENT_STATE
+    return result
 
 
 def main() -> int:
@@ -72,13 +97,32 @@ def main() -> int:
         "--show-changes", action="store_true",
         help="Write tracked changes into the content as {++inserted++} and {--deleted--}",
     )
+    parser.add_argument(
+        "--comments", action="store_true",
+        help="List only the comment threads (whole document, or the heading or paragraph range), "
+             "each with resolved true or false, and a count of the open ones; no content",
+    )
+    parser.add_argument(
+        "--unresolved", action="store_true",
+        help="With --comments: list only the threads that are not resolved",
+    )
     add_output_argument(parser)
     args = parser.parse_args()
     try:
         path = require_path(args.document, {".docx"})
         if args.max_chars < 1:
             raise ValueError("max-chars must be positive")
-        if args.outline_only:
+        if args.unresolved and not args.comments:
+            raise ValueError(
+                "--unresolved needs --comments: read_docx.py <document> --comments --unresolved"
+            )
+        if args.comments and (args.outline_only or args.show_changes):
+            raise ValueError("--comments cannot be combined with --outline-only or --show-changes")
+        if args.comments:
+            emit(comments(
+                path, args.heading, args.start_paragraph, args.end_paragraph, args.unresolved,
+            ), args.output)
+        elif args.outline_only:
             emit(outline(path), args.output)
         else:
             emit(read(

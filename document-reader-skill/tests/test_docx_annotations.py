@@ -314,3 +314,178 @@ def test_normalize_keeps_comments_and_changes_as_their_own_blocks(tmp_path, monk
         ("text", None), ("structure", "comments"), ("structure", "revisions"),
     ]
     assert blocks[1]["data"][0]["anchor"] == "must log in"
+
+
+# --- read_docx --comments ------------------------------------------------------
+
+
+def threads_docx(tmp_path, extended=True):
+    """Four threads: a resolved one, an open one with two replies (one of them marked
+    done), a resolved one whose reply is not marked done, and an open one under a
+    second heading. Without `extended` the file has no commentsExtended.xml."""
+    def commented(text, *ids):
+        return "<w:p>" + run(text) + "".join(reference(comment_id) for comment_id in ids) + "</w:p>"
+
+    body = "".join([
+        docx_paragraph("Login", "H1"),
+        commented("Users must log in.", "0"),
+        commented("Sessions end after 30 minutes.", "1", "2", "3"),
+        commented("Passwords expire.", "4", "5"),
+        docx_paragraph("Audit", "H1"),
+        commented("Logs are kept.", "6"),
+    ])
+    parts = {
+        "word/comments.xml": comments_part(
+            comment("0", "An", "2026-10-01T07:00:00Z", "Which roles?", "0A000000"),
+            comment("1", "An", "2026-10-01T07:10:00Z", "Idle or absolute?", "0A000001"),
+            comment("2", "Lan", "2026-10-01T07:20:00Z", "Idle.", "0A000002"),
+            comment("3", "An", "2026-10-01T07:30:00Z", "Then say so.", "0A000003"),
+            comment("4", "Bình", "2026-10-01T07:40:00Z", "How often?", "0A000004"),
+            comment("5", "Lan", "2026-10-01T07:50:00Z", "Every 90 days.", "0A000005"),
+            comment("6", "Bình", "2026-10-01T08:00:00Z", "For how long?", "0A000006"),
+        ),
+    }
+    if extended:
+        parts["word/commentsExtended.xml"] = extended_part(
+            '<w15:commentEx w15:paraId="0A000000" w15:done="1"/>',
+            '<w15:commentEx w15:paraId="0A000001" w15:done="0"/>',
+            '<w15:commentEx w15:paraId="0A000002" w15:paraIdParent="0A000001" w15:done="1"/>',
+            '<w15:commentEx w15:paraId="0A000003" w15:paraIdParent="0A000001" w15:done="0"/>',
+            '<w15:commentEx w15:paraId="0A000004" w15:done="1"/>',
+            '<w15:commentEx w15:paraId="0A000005" w15:paraIdParent="0A000004" w15:done="0"/>',
+            '<w15:commentEx w15:paraId="0A000006" w15:done="0"/>',
+        )
+    return write_docx(tmp_path / "threads.docx", body, HEADING_STYLE, parts)
+
+
+def test_comments_mode_lists_every_thread_with_its_resolved_state(tmp_path):
+    result = read_docx.comments(threads_docx(tmp_path), None, None, None)
+
+    assert set(result) == {"document", "type", "source", "summary", "thread_count", "open_count", "comments"}
+    assert result["summary"] == "2 open of 4 threads"
+    assert (result["thread_count"], result["open_count"]) == (4, 2)
+    assert [(c["id"], c["paragraph"], c["resolved"]) for c in result["comments"]] == [
+        ("0", 2, True), ("1", 3, False), ("4", 4, True), ("6", 6, False),
+    ]
+
+
+def test_unresolved_keeps_an_open_thread_with_its_replies_under_it(tmp_path):
+    result = read_docx.comments(threads_docx(tmp_path), None, None, None, unresolved_only=True)
+
+    assert result["unresolved_only"] is True
+    assert result["summary"] == "2 open of 4 threads"
+    assert result["comments"] == [
+        {
+            "paragraph": 3, "id": "1", "author": "An", "date": "2026-10-01T07:10:00Z",
+            "text": "Idle or absolute?", "anchor": "", "resolved": False,
+            # A reply marked done does not close the thread, and carries no state of its own.
+            "replies": [
+                {"id": "2", "author": "Lan", "date": "2026-10-01T07:20:00Z", "text": "Idle."},
+                {"id": "3", "author": "An", "date": "2026-10-01T07:30:00Z", "text": "Then say so."},
+            ],
+        },
+        {
+            "paragraph": 6, "id": "6", "author": "Bình", "date": "2026-10-01T08:00:00Z",
+            "text": "For how long?", "anchor": "", "resolved": False,
+        },
+    ]
+
+
+def test_reply_to_a_resolved_thread_is_not_an_open_thread(tmp_path):
+    path = threads_docx(tmp_path)
+
+    everything = read_docx.comments(path, None, None, None)["comments"]
+    assert everything[2]["resolved"] is True
+    assert [reply["id"] for reply in everything[2]["replies"]] == ["5"]
+
+    listed = read_docx.comments(path, None, None, None, unresolved_only=True)["comments"]
+    assert all(c["id"] not in ("4", "5") for c in listed)
+    assert all(reply["id"] != "5" for c in listed for reply in c.get("replies", []))
+
+
+def test_comments_mode_counts_only_the_heading_or_range_asked_for(tmp_path):
+    path = threads_docx(tmp_path)
+
+    section = read_docx.comments(path, "login", None, None, unresolved_only=True)
+    assert section["source"] == {
+        "heading": {"title": "Login", "level": 1}, "start_paragraph": 1, "end_paragraph": 4,
+    }
+    assert section["summary"] == "1 open of 3 threads"
+    assert [c["id"] for c in section["comments"]] == ["1"]
+
+    one = read_docx.comments(path, None, 2, 2, unresolved_only=True)
+    assert (one["summary"], one["comments"]) == ("0 open of 1 thread", [])
+
+
+def test_file_without_resolved_state_lists_every_comment_as_open_and_says_so_once(tmp_path):
+    result = read_docx.comments(threads_docx(tmp_path, extended=False), None, None, None, unresolved_only=True)
+
+    assert result["summary"] == "7 open of 7 threads"
+    assert [c["id"] for c in result["comments"]] == ["0", "1", "2", "3", "4", "5", "6"]
+    assert all(c["resolved"] is False and "replies" not in c for c in result["comments"])
+    assert "commentsExtended.xml" in result["note"]
+    assert "note" not in read_docx.comments(threads_docx(tmp_path), None, None, None)
+
+
+def test_comments_mode_on_a_document_without_comments(sample_docx):
+    result = read_docx.comments(sample_docx, None, None, None, unresolved_only=True)
+
+    assert (result["summary"], result["comments"]) == ("0 open of 0 threads", [])
+    assert "note" not in result
+
+
+def test_comments_mode_leaves_the_plain_read_as_it_was(tmp_path):
+    result = read_docx.read(threads_docx(tmp_path), None, None, None, 12000)
+
+    assert set(result) == {"document", "type", "source", "content", "truncated", "comments"}
+    assert ["resolved" in c for c in result["comments"]] == [True, False, True, False]
+
+
+def run_read_docx(*arguments):
+    return subprocess.run(
+        [sys.executable, str(SCRIPTS / "read_docx.py"), *(str(argument) for argument in arguments)],
+        capture_output=True,
+    )
+
+
+def test_command_line_lists_unresolved_threads(tmp_path):
+    completed = run_read_docx(threads_docx(tmp_path), "--comments", "--unresolved")
+
+    assert completed.returncode == 0, completed.stderr
+    result = json.loads(completed.stdout.decode("utf-8"))
+    assert result["summary"] == "2 open of 4 threads"
+    assert [c["id"] for c in result["comments"]] == ["1", "6"]
+    assert "content" not in result
+
+
+def test_unresolved_without_comments_is_an_error_naming_the_usage(tmp_path):
+    completed = run_read_docx(threads_docx(tmp_path), "--unresolved")
+
+    assert completed.returncode == 2
+    assert completed.stdout == b""
+    assert b"--comments --unresolved" in completed.stderr
+
+
+def test_comments_with_outline_only_or_show_changes_is_an_error(tmp_path):
+    path = threads_docx(tmp_path)
+
+    for flag in ("--outline-only", "--show-changes"):
+        completed = run_read_docx(path, "--comments", flag)
+        assert completed.returncode == 2
+        assert b"--comments cannot be combined" in completed.stderr
+
+
+def test_normalize_keeps_the_threads_the_counts_and_the_note(tmp_path, monkeypatch, capsys):
+    import normalize_output
+
+    source = tmp_path / "reader.json"
+    payload = read_docx.comments(threads_docx(tmp_path, extended=False), None, None, None, unresolved_only=True)
+    source.write_text(json.dumps(payload), encoding="utf-8")
+    monkeypatch.setattr("sys.argv", ["normalize_output.py", str(source)])
+    assert normalize_output.main() == 0
+    result = json.loads(capsys.readouterr().out)
+
+    assert [(block["kind"], block["source"]["part"]) for block in result["blocks"]] == [("structure", "comments")]
+    assert result["blocks"][0]["data"]["summary"] == "7 open of 7 threads"
+    assert len(result["blocks"][0]["data"]["comments"]) == 7
+    assert result["warnings"] == [payload["note"]]
