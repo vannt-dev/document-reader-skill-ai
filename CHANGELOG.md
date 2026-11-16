@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-16
+
+Lists the open review in a Word document: `read_docx.py --comments --unresolved`.
+
 ### Added
 
 - `read_docx.py --comments` lists only the comment threads of a Word document, a heading or a
@@ -153,7 +157,8 @@ First tagged release of the Document Reader skill.
 - Setup scripts for Windows, Linux and macOS that install the skill for Codex,
   Claude Code and Gemini CLI.
 
-[Unreleased]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.4.2...HEAD
+[Unreleased]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.4.0...v1.4.1
 [1.4.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.3.0...v1.4.0
