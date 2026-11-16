@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-## [1.5.0] - 2026-11-15
+## [1.5.0] - 2026-11-16
 
 Lists the open review in a Word document: `read_docx.py --comments --unresolved`.
 
