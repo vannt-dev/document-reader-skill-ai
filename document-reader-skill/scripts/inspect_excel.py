@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Inspect workbook structure while returning only small previews."""
+"""Inspect workbook structure while returning only small previews.
+
+A sheet with charts or SmartArt lists them under `graphics`: a chart as its
+`title`, `chart_type` and `tables` of `headers` and `rows` (the values the chart
+keeps), a SmartArt diagram as its `lines`. A chart sheet is listed with
+`"chart_sheet": true` and only its graphics.
+"""
 
 from __future__ import annotations
 
@@ -7,6 +13,20 @@ import argparse
 import sys
 
 from common import add_output_argument, emit, json_value, require_path
+from doc_text import xlsx_graphics
+
+
+def graphics_json(graphics: list[dict]) -> list[dict]:
+    """Charts and SmartArt with every value JSON-safe."""
+    shown = []
+    for graphic in graphics:
+        if graphic["kind"] == "chart":
+            graphic = {**graphic, "tables": [
+                {"headers": table["headers"], "rows": [[json_value(v) for v in row] for row in table["rows"]]}
+                for table in graphic["tables"]
+            ]}
+        shown.append(graphic)
+    return shown
 
 
 def main() -> int:
@@ -24,6 +44,7 @@ def main() -> int:
         if args.preview_rows < 0 or args.max_columns < 1:
             raise ValueError("preview-rows must be >= 0 and max-columns must be >= 1")
         workbook = load_workbook(path, read_only=True, data_only=args.data_only, keep_links=False)
+        graphics = xlsx_graphics(path)
         sheets = []
         for sheet in workbook.worksheets:
             preview = []
@@ -40,7 +61,11 @@ def main() -> int:
                 "columns": sheet.max_column,
                 "preview": preview,
                 "preview_truncated_columns": (sheet.max_column or 0) > args.max_columns,
+                **({"graphics": graphics_json(graphics[sheet.title])} if sheet.title in graphics else {}),
             })
+        for name in workbook.sheetnames:
+            if name in graphics and name not in {sheet["name"] for sheet in sheets}:
+                sheets.append({"name": name, "chart_sheet": True, "graphics": graphics_json(graphics[name])})
         emit({"document": str(path), "type": "excel", "data_only": args.data_only, "sheets": sheets}, args.output)
         workbook.close()
         return 0

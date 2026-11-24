@@ -43,15 +43,20 @@ Host coding agent (Codex, Claude Code, Gemini CLI, ...)
 Project code changes + tests
 ```
 
-Định dạng đọc được: Excel (`.xlsx`, `.xlsm`), CSV (`.csv`, `.tsv`), Markdown,
-PDF (kể cả bảng, và trang scan qua OCR), Word (`.docx`, kể cả comment và track
-changes), PowerPoint (`.pptx`),
+Định dạng đọc được: Excel (`.xlsx`, `.xlsm`, kể cả biểu đồ và SmartArt), CSV (`.csv`, `.tsv`), Markdown,
+PDF (kể cả bảng, và trang scan qua OCR), Word (`.docx`, kể cả comment, track
+changes, biểu đồ và SmartArt), PowerPoint (`.pptx`, kể cả biểu đồ và SmartArt),
 HTML (`.html`, `.htm`, ví dụ bản export Confluence/wiki) và text (`.txt`).
 
 Word được đọc như khi đã chấp nhận mọi thay đổi track changes; comment (kèm trả lời
 và trạng thái đã resolve) cùng các phần chèn, xóa, di chuyển được trả về riêng, mỗi
 mục có tác giả, ngày và số đoạn.
 `read_docx.py --comments --unresolved` chỉ liệt kê các thread comment chưa resolve.
+
+Biểu đồ được đọc từ dữ liệu file lưu kèm (tiêu đề, series, category và giá trị, thành
+bảng các dòng `cell | cell`), SmartArt được đọc thành chữ, mỗi node một dòng: nằm trong
+chữ của slide, sau đoạn Word chứa nó, và dưới `graphics` của từng sheet Excel trong
+`inspect_excel.py`.
 
 Coding agent là thành phần sửa project. Các script của skill chỉ đọc và chuẩn
 hóa tài liệu. Adapter OpenAI/Anthropic/Gemini là tùy chọn dành cho phân tích API

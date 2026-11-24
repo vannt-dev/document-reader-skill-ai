@@ -1,7 +1,9 @@
-"""Text extraction for PDF and Word (.docx) documents.
+"""Text extraction for PDF, Word (.docx) and PowerPoint (.pptx) documents, and the
+charts and SmartArt of Excel workbooks.
 
 Read-only: nothing inside a document is executed, and no external link is followed.
-PDF needs pypdf; .docx is read with the standard library only.
+PDF needs pypdf; Office files are read with the standard library only (openpyxl
+reads the cells a workbook chart names when the chart keeps no copy of them).
 """
 
 from __future__ import annotations
@@ -11,11 +13,16 @@ import zipfile
 from pathlib import Path
 from xml.etree import ElementTree
 
+from graphics_text import frame_graphics, graphic_lines
+
 W_URI = b"http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 # "Strict Open XML" documents use a different namespace for the same elements.
 W_STRICT_URI = b"http://purl.oclc.org/ooxml/wordprocessingml/main"
 W = "{" + W_URI.decode() + "}"
 MC_FALLBACK = "{http://schemas.openxmlformats.org/markup-compatibility/2006}Fallback"
+MC_ALTERNATE = "{http://schemas.openxmlformats.org/markup-compatibility/2006}AlternateContent"
+MC_CHOICE = "{http://schemas.openxmlformats.org/markup-compatibility/2006}Choice"
+S = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 A = "{http://schemas.openxmlformats.org/drawingml/2006/main}"
 P = "{http://schemas.openxmlformats.org/presentationml/2006/main}"
 R = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
@@ -35,6 +42,18 @@ STRICT_NAMESPACES = [
     (
         b"http://purl.oclc.org/ooxml/officeDocument/relationships",
         b"http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    ),
+    (
+        b"http://purl.oclc.org/ooxml/drawingml/chart",
+        b"http://schemas.openxmlformats.org/drawingml/2006/chart",
+    ),
+    (
+        b"http://purl.oclc.org/ooxml/drawingml/diagram",
+        b"http://schemas.openxmlformats.org/drawingml/2006/diagram",
+    ),
+    (
+        b"http://purl.oclc.org/ooxml/spreadsheetml/main",
+        b"http://schemas.openxmlformats.org/spreadsheetml/2006/main",
     ),
 ]
 TITLE_PLACEHOLDERS = {"title", "ctrTitle"}
@@ -289,15 +308,29 @@ def _paragraph_level(paragraph, style_levels: dict[str, int]) -> int | None:
     return None
 
 
-def _walk(container, style_levels: dict[str, int], ranges: _Ranges):
+def _graphic_items(graphic: dict):
+    """A chart or SmartArt diagram as items: its first line a paragraph, a chart's table rows as rows."""
+    for position, line in enumerate(graphic_lines(graphic)):
+        row = graphic["kind"] == "chart" and position > 0
+        yield {
+            "kind": "table_row" if row else "paragraph", "level": None, "text": line,
+            "marked": "", "revisions": [], "comments": [],
+        }
+
+
+def _walk(container, style_levels: dict[str, int], ranges: _Ranges, graphics: dict | None = None):
     """Paragraphs and table rows in document order, empty ones too: an empty one
-    can still hold a comment or a deletion."""
+    can still hold a comment or a deletion. The charts and SmartArt of a paragraph
+    (`graphics`, by paragraph element) follow it."""
     for child in container:
         if child.tag == f"{W}p":
             read = _read_paragraph(child, ranges)
             level = _paragraph_level(child, style_levels) if read["text"] else None
             yield {"kind": "heading" if level else "paragraph", "level": level, **read}
+            for graphic in (graphics or {}).get(child, []):
+                yield from _graphic_items(graphic)
         elif child.tag == f"{W}tbl":
+            placed: set = set()  # a nested table's rows are rows of the outer one too
             for row in child.iter(f"{W}tr"):
                 cells, marked, revisions, comments = [], [], [], []
                 for cell in row.findall(f"{W}tc"):
@@ -314,10 +347,16 @@ def _walk(container, style_levels: dict[str, int], ranges: _Ranges):
                     "marked": " | ".join(marked) if revisions else "",
                     "revisions": revisions, "comments": comments,
                 }
+                for paragraph in row.iter(f"{W}p"):
+                    if paragraph in placed:
+                        continue
+                    placed.add(paragraph)
+                    for graphic in (graphics or {}).get(paragraph, []):
+                        yield from _graphic_items(graphic)
         elif child.tag == f"{W}sdt":
             content = child.find(f"{W}sdtContent")
             if content is not None:
-                yield from _walk(content, style_levels, ranges)
+                yield from _walk(content, style_levels, ranges, graphics)
 
 
 def _comments(archive: zipfile.ZipFile) -> tuple[dict[str, dict], dict[str, str]]:
@@ -387,12 +426,35 @@ def _finish(item: dict, comments: dict[str, dict], parents: dict[str, str],
         del item["revisions"]
 
 
+def _paragraph_graphics(archive: zipfile.ZipFile, body, document: bytes) -> dict:
+    """The charts and SmartArt diagrams of each paragraph that holds any, by paragraph element."""
+    if b"graphicData" not in document:
+        return {}
+    relationships = _relationships(archive, "word/document.xml")
+    found = {}
+
+    def visit(element) -> None:
+        for child in element:
+            if child.tag != f"{W}p":
+                visit(child)
+                continue
+            # A paragraph inside this one (a text box) belongs to it: not visited on its own.
+            graphics = frame_graphics(child, relationships, lambda name: _read_part(archive, name))
+            if graphics:
+                found[child] = graphics
+
+    visit(body)
+    return found
+
+
 def docx_items(path: Path) -> list[dict]:
     """Non-empty paragraphs, headings and table rows in document order.
 
     Each item carries a 1-based `index`, which is the citation unit for .docx.
-    The text is the document with every tracked change accepted. An item holding
-    comments carries `comments`; one holding tracked changes carries `revisions`
+    The text is the document with every tracked change accepted. A chart follows
+    the paragraph that holds it, as a `Chart: title (type)` paragraph and its
+    table rows; a SmartArt diagram as a `SmartArt:` paragraph and one a node.
+    An item holding comments carries `comments`; one holding tracked changes carries `revisions`
     and `marked`, its text with the changes written in. Other items carry neither.
     """
     try:
@@ -407,15 +469,16 @@ def docx_items(path: Path) -> list[dict]:
             raise ValueError("Not a Word document: word/document.xml is missing")
         style_levels = _style_levels(_read_part(archive, "word/styles.xml"))
         comments, parents = _comments(archive)
-    body = ElementTree.fromstring(document).find(f"{W}body")
-    if body is None:
-        return []
+        body = ElementTree.fromstring(document).find(f"{W}body")
+        if body is None:
+            return []
+        graphics = _paragraph_graphics(archive, body, document)
     ranges = _Ranges()
     items: list[dict] = []
     # A paragraph or row that is empty once the changes are accepted (a deleted one)
     # gets no number; what it holds goes to the item before it, or the first item.
     leading: dict | None = None
-    for item in _walk(body, style_levels, ranges):
+    for item in _walk(body, style_levels, ranges, graphics):
         if item["text"]:
             if leading is not None:
                 _merge(item, leading, before=True)
@@ -569,8 +632,11 @@ def _drawing_paragraphs(container) -> list[str]:
     return paragraphs
 
 
-def _slide_content(root) -> tuple[str | None, list[str]]:
-    """A slide's title and its other text, in the order shapes are stored."""
+def _slide_content(root, graphics=None) -> tuple[str | None, list[str]]:
+    """A slide's title and its other text, in the order shapes are stored.
+
+    `graphics`, given a graphic frame, returns its charts and SmartArt diagrams.
+    """
     title = None
     lines: list[str] = []
     tree = root.find(f"{P}cSld/{P}spTree")
@@ -596,8 +662,16 @@ def _slide_content(root) -> tuple[str | None, list[str]]:
                     ]
                     if any(cells):
                         lines.append(" | ".join(cells))
+                for graphic in graphics(shape) if graphics else ():
+                    lines.extend(graphic_lines(graphic))
             elif shape.tag == f"{P}grpSp":
                 visit(shape)
+            elif shape.tag == MC_ALTERNATE:
+                # A shape stored for newer versions (a chart of a newer type) and
+                # again as a stand-in for older ones: read the first.
+                choice = shape.find(MC_CHOICE)
+                if choice is not None:
+                    visit(choice)
 
     visit(tree)
     return title, lines
@@ -618,7 +692,9 @@ def pptx_slides(path: Path) -> list[dict]:
 
     Each slide carries a 1-based `slide` number (the citation unit for .pptx),
     its `title` (None when it has no title placeholder), the `lines` of its
-    other text with table rows as `cell | cell`, and its speaker `notes`.
+    other text with table rows as `cell | cell`, and its speaker `notes`. A chart
+    is a `Chart: title (type)` line and its data as rows (categories, then a
+    column a series); a SmartArt diagram a `SmartArt:` line and one a node.
     """
     try:
         archive = zipfile.ZipFile(path)
@@ -640,9 +716,14 @@ def pptx_slides(path: Path) -> list[dict]:
                 # Keep the numbering of the deck: a slide whose part is missing
                 # is skipped, not renumbered away.
                 continue
-            title, lines = _slide_content(ElementTree.fromstring(data))
+            linked_parts = _relationships(archive, relationship["target"])
+
+            def graphics(frame, linked_parts=linked_parts):
+                return frame_graphics(frame, linked_parts, lambda name: _read_part(archive, name))
+
+            title, lines = _slide_content(ElementTree.fromstring(data), graphics)
             notes: list[str] = []
-            for linked in _relationships(archive, relationship["target"]).values():
+            for linked in linked_parts.values():
                 if linked["type"] == "notesSlide":
                     notes_data = _read_part(archive, linked["target"])
                     if notes_data is not None:
@@ -661,3 +742,94 @@ def pptx_render(slide: dict, include_notes: bool = True) -> str:
         lines.append("Notes:")
         lines.extend(slide["notes"])
     return "\n".join(lines)
+
+
+# --- XLSX charts and SmartArt ------------------------------------------------
+
+CELL_RANGE = re.compile(
+    r"\s*(?:'((?:[^']|'')+)'|([^'!]+))!\$?([A-Za-z]{1,3})\$?(\d+)(?::\$?([A-Za-z]{1,3})\$?(\d+))?\s*"
+)
+# Cells read for one series when a chart keeps no copy of its data.
+MAX_RESOLVED_CELLS = 10000
+
+
+class _Cells:
+    """Reads the cells a chart names (`'Sales'!$B$2:$B$5`), opening the workbook only when asked.
+
+    Values are those saved in the file: a formula cell gives its last calculated
+    value, or nothing when the file was never calculated.
+    """
+
+    def __init__(self, path: Path):
+        self.path = path
+        self.workbook = None
+
+    def __call__(self, formula: str) -> list:
+        match = CELL_RANGE.fullmatch(formula)
+        if match is None:
+            return []  # a union of ranges, a name or a constant: not read
+        sheet = match[1].replace("''", "'") if match[1] else match[2].strip()
+        if self.workbook is None:
+            from openpyxl import load_workbook
+
+            self.workbook = load_workbook(self.path, read_only=True, data_only=True, keep_links=False)
+        if sheet not in self.workbook.sheetnames:
+            return []
+        from openpyxl.utils.cell import column_index_from_string
+
+        first_col = column_index_from_string(match[3].upper())
+        last_col = column_index_from_string((match[5] or match[3]).upper())
+        first_row, last_row = int(match[4]), int(match[6] or match[4])
+        if (last_row - first_row + 1) * (last_col - first_col + 1) > MAX_RESOLVED_CELLS:
+            last_row = first_row + MAX_RESOLVED_CELLS // (last_col - first_col + 1) - 1
+        values = []
+        for row in self.workbook[sheet].iter_rows(
+            min_row=first_row, max_row=last_row, min_col=first_col, max_col=last_col, values_only=True,
+        ):
+            values.extend(row)
+        return values
+
+    def close(self) -> None:
+        if self.workbook is not None:
+            self.workbook.close()
+
+
+def xlsx_graphics(path: Path) -> dict[str, list[dict]]:
+    """The charts and SmartArt diagrams of each sheet that has any, by sheet name, in workbook order.
+
+    A chart is `title`, `chart_type` and `tables` of `headers` and `rows` (see
+    graphics_text.chart_data); a chart sheet is listed under its own name. Values
+    are the copy the chart keeps; when it keeps none, the cells it names are read.
+    """
+    try:
+        archive = zipfile.ZipFile(path)
+    except zipfile.BadZipFile as exc:
+        raise ValueError("Not a readable .xlsx file (password-protected files are not supported)") from exc
+    cells = _Cells(path)
+    found: dict[str, list[dict]] = {}
+    try:
+        with archive:
+            workbook = _read_part(archive, "xl/workbook.xml")
+            if workbook is None:
+                return {}
+            sheets = _relationships(archive, "xl/workbook.xml")
+            for entry in ElementTree.fromstring(workbook).iter(f"{S}sheet"):
+                sheet = sheets.get(entry.get(f"{R}id") or "")
+                if sheet is None:
+                    continue
+                graphics = []
+                for linked in _relationships(archive, sheet["target"]).values():
+                    if linked["type"] != "drawing":
+                        continue
+                    drawing = _read_part(archive, linked["target"])
+                    if drawing is None:
+                        continue
+                    graphics += frame_graphics(
+                        ElementTree.fromstring(drawing), _relationships(archive, linked["target"]),
+                        lambda name: _read_part(archive, name), cells,
+                    )
+                if graphics:
+                    found[entry.get("name") or ""] = graphics
+    finally:
+        cells.close()
+    return found
