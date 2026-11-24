@@ -209,6 +209,34 @@ def test_xlsx_chart_without_cached_data_reads_the_cells_it_names(tmp_path):
     assert chart["tables"] == [{"headers": ["Category", "Revenue"], "rows": [["Q1", 10], ["Q2", 12]]}]
 
 
+def test_xlsx_chart_sheet_is_listed_with_its_chart(tmp_path, monkeypatch, capsys):
+    from openpyxl import Workbook
+    from openpyxl.chart import PieChart, Reference
+
+    path = tmp_path / "split.xlsx"
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "Data"
+    for row in [["Region", "Share"], ["North", 60], ["South", 40]]:
+        sheet.append(row)
+    chart = PieChart()
+    chart.title = "Split"
+    chart.add_data(Reference(sheet, min_col=2, min_row=1, max_row=3), titles_from_data=True)
+    chart.set_categories(Reference(sheet, min_col=1, min_row=2, max_row=3))
+    workbook.create_chartsheet("Pie").add_chart(chart)
+    workbook.save(path)
+
+    monkeypatch.setattr("sys.argv", ["inspect_excel.py", str(path)])
+    assert inspect_excel.main() == 0
+    sheets = json.loads(capsys.readouterr().out)["sheets"]
+    assert [sheet["name"] for sheet in sheets] == ["Data", "Pie"]
+    assert "graphics" not in sheets[0]
+    assert sheets[1] == {"name": "Pie", "chart_sheet": True, "graphics": [{
+        "kind": "chart", "title": "Split", "chart_type": "pie", "points": 2, "truncated": False,
+        "tables": [{"headers": ["Category", "Share"], "rows": [["North", 60], ["South", 40]]}],
+    }]}
+
+
 def test_xlsx_cached_chart_and_smartart_in_inspect_and_cache(tmp_path, manifest_for, monkeypatch, capsys):
     path = _xlsx_with_chart(tmp_path)
     # Replace the chart with one that keeps its data, as Excel saves it, and add a SmartArt diagram.
