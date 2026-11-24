@@ -264,6 +264,32 @@ def extract_excel(path: Path, window: int) -> list[dict]:
                 })
     finally:
         workbook.close()
+    return blocks + excel_graphic_blocks(path)
+
+
+def excel_graphic_blocks(path: Path) -> list[dict]:
+    """One text block a chart or SmartArt diagram, after the sheets' cells: `Sales!chart-1`."""
+    from doc_text import xlsx_graphics
+    from graphics_text import graphic_lines
+
+    blocks = []
+    for sheet, graphics in xlsx_graphics(path).items():
+        counts: dict[str, int] = {}
+        for graphic in graphics:
+            text = "\n".join(graphic_lines(graphic))
+            if not text:
+                continue
+            kind = "smartart" if graphic["kind"] == "smartart" else "chart"
+            counts[kind] = counts.get(kind, 0) + 1
+            number = counts[kind]
+            title = graphic.get("title")
+            name = f"{sheet} {'SmartArt' if kind == 'smartart' else 'chart'} {number}"
+            blocks.append({
+                "block_id": f"{sheet}!{kind}-{number}",
+                "ref": {"sheet": sheet, kind: number},
+                "label": f"{name}: {title}" if title else name,
+                "content": {"text": text},
+            })
     return blocks
 
 

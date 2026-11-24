@@ -178,7 +178,7 @@ lệnh trả về `no_previous_version`.
 | Query 1 tài liệu | `query_cache.py --doc <doc-id>` |
 | Query 1 block | `query_cache.py --block-id "<id>"` |
 | Tài liệu đổi gì so với bản trước | `query_cache.py --changes --doc <doc-id>` |
-| Inspect cấu trúc Excel | `inspect_excel.py requirements/api.xlsx --preview-rows 5` |
+| Inspect cấu trúc Excel (kèm biểu đồ và SmartArt của từng sheet trong `graphics`) | `inspect_excel.py requirements/api.xlsx --preview-rows 5` |
 | Outline Markdown | `read_markdown.py requirements/business.md --outline-only` |
 | Outline PDF (số trang, bookmark, trang không có chữ) | `read_pdf.py requirements/policy.pdf --outline-only` |
 | Đọc vài trang PDF | `read_pdf.py requirements/policy.pdf --pages 3-5` |

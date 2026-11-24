@@ -66,12 +66,12 @@ analysis through an API, and cannot touch the file system.
 
 | Format | Extensions | Cited by |
 |---|---|---|
-| Excel | `.xlsx`, `.xlsm` | sheet and cell |
+| Excel | `.xlsx`, `.xlsm`, with charts and SmartArt | sheet and cell |
 | CSV | `.csv`, `.tsv` | cell |
 | Markdown | `.md`, `.markdown` | heading and line |
 | PDF | `.pdf`, with tables, and scanned pages through OCR | page |
-| Word | `.docx`, with comments and tracked changes | heading and paragraph |
-| PowerPoint | `.pptx` | slide |
+| Word | `.docx`, with comments, tracked changes, charts and SmartArt | heading and paragraph |
+| PowerPoint | `.pptx`, with charts and SmartArt | slide |
 | HTML | `.html`, `.htm`, such as Confluence or wiki exports | heading and paragraph |
 | Plain text | `.txt` | line |
 
@@ -79,6 +79,11 @@ Word text is read with every tracked change accepted; the comments (with replies
 whether they are resolved) and the tracked insertions, deletions and moves come
 alongside, each with its author, date and paragraph.
 `read_docx.py --comments --unresolved` lists only the comment threads that are still open.
+
+Charts are read from the data the file keeps with them (title, series, categories and
+values, as a table of `cell | cell` rows) and SmartArt as its text, one line a node:
+in a slide's text, after the Word paragraph that holds them, and under each Excel
+sheet's `graphics` in `inspect_excel.py`.
 
 Legacy `.xls`, `.doc` and `.ppt` files must be saved in the newer format first.
 Pictures (`.png`, `.jpg`, ...) can be read one at a time with OCR but are not indexed.
