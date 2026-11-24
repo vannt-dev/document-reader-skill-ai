@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-24
+
+Reads charts and SmartArt in PowerPoint, Word and Excel files.
+
+### Added
+
+- Charts are read from the data the file keeps with them: a `Chart: <title> (<type>)` line, then
+  a header row (`Category`, or `X` for a scatter chart, then one column a series) and one row a
+  category, as `cell | cell`. SmartArt gives a `SmartArt:` line and one `- text` line a node,
+  indented by its level. In a slide they come with the slide's text; in a Word document as
+  paragraphs after the paragraph that holds them; in Excel, `inspect_excel.py` lists them under
+  each sheet's `graphics` (a chart sheet with `"chart_sheet": true`), and the cache holds one
+  block each (`Sales!chart-1`). Chart values are the ones saved with the file and may be older
+  than the data they were drawn from. A chart of a newer Office type (waterfall, treemap, funnel)
+  is listed as not read. Rebuild an older cache with `build_cache.py --force` to add them.
+  ([#31](https://github.com/vannt-dev/document-reader-skill-ai/pull/31))
+
 ## [1.5.0] - 2026-11-16
 
 Lists the open review in a Word document: `read_docx.py --comments --unresolved`.
@@ -157,7 +174,8 @@ First tagged release of the Document Reader skill.
 - Setup scripts for Windows, Linux and macOS that install the skill for Codex,
   Claude Code and Gemini CLI.
 
-[Unreleased]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.4.2...v1.5.0
 [1.4.2]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.4.1...v1.4.2
 [1.4.1]: https://github.com/vannt-dev/document-reader-skill-ai/compare/v1.4.0...v1.4.1
