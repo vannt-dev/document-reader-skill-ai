@@ -30,8 +30,9 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       # python-pptx only builds a test deck with a real chart; the skill reads .pptx without it.
+      # olefile is the optional reader of Outlook .msg files; without it those tests skip.
       - name: Install dependencies
-        run: python -m pip install openpyxl pypdf pdfplumber python-pptx pytest
+        run: python -m pip install openpyxl pypdf pdfplumber python-pptx olefile pytest
       # The OCR tests that need the real program run where it is one command
       # to install; on Windows they are skipped and the rest of the OCR
       # tests run against a stand-in.

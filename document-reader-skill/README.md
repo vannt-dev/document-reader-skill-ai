@@ -1,6 +1,6 @@
 # Document Reader
 
-Document Reader giúp coding agent đọc requirement Excel/CSV/Markdown/PDF/Word/PowerPoint/HTML/text trong project
+Document Reader giúp coding agent đọc requirement Excel/CSV/Markdown/PDF/Word/PowerPoint/HTML/text/e-mail trong project
 mà không nạp toàn bộ tài liệu vào model context.
 
 ## Trải nghiệm mục tiêu
@@ -223,6 +223,8 @@ mặc định, ví dụ `vie+eng`).
 - `openpyxl` cho `.xlsx` và `.xlsm`
 - `pypdf` cho `.pdf`
 - `pdfplumber` (tùy chọn) để trích bảng trong PDF bằng `read_pdf.py --tables`
+- `olefile` (tùy chọn, giấy phép BSD) để đọc e-mail Outlook `.msg`; thiếu gói này thì
+  `.msg` báo lỗi kèm lệnh cài, các định dạng khác vẫn đọc bình thường
 - Tesseract (tùy chọn) để đọc trang PDF scan và ảnh bằng OCR: `read_pdf.py --ocr`,
   `build_cache.py --ocr`, `read_image.py`. Cài bằng `setup-ocr.ps1` (Windows) hoặc
   `setup-ocr.sh` (Linux/macOS) ở thư mục gốc của repo; xem mục "OCR" bên dưới.
@@ -247,7 +249,15 @@ resolve khi comment đầu của nó đã resolve. File không ghi trạng thái
 bản export Google Docs) thì mọi comment được liệt kê là một thread còn mở, và `note` nói rõ
 điều đó. Hiện chỉ áp dụng cho Word.
 
-Markdown, `.docx`, `.pptx`, `.csv`/`.tsv`, `.html`/`.htm` và `.txt` chỉ dùng thư viện chuẩn. `.xls` cũ cần được chuyển sang `.xlsx`, `.doc` cũ sang `.docx`, `.ppt` cũ sang `.pptx`.
+E-mail (`.eml`, `.msg`) được đọc thành các dòng: From, To, Cc, Date, Subject (đã giải mã
+`=?UTF-8?...?=`), một dòng trống, nội dung (bản `text/plain` nếu có, nếu không thì bản HTML
+chuyển thành chữ; quoted-printable, base64 và charset được giải mã), rồi `Attachments:` liệt kê
+tên, loại và kích thước từng file đính kèm. `read_email.py --attachments` đọc luôn các file đính
+kèm là tài liệu skill hỗ trợ (tối đa 20 file, mỗi file tối đa 20 MB; e-mail lồng trong e-mail chỉ
+được đọc một cấp); `build_cache.py --email-attachments` đưa chúng vào cache thành block
+`attachment-N/...` có `ref.attachment`. `.msg` chỉ có nội dung RTF thì báo rõ là không đọc được.
+
+Markdown, `.docx`, `.pptx`, `.csv`/`.tsv`, `.html`/`.htm`, `.txt` và `.eml` chỉ dùng thư viện chuẩn. `.xls` cũ cần được chuyển sang `.xlsx`, `.doc` cũ sang `.docx`, `.ppt` cũ sang `.pptx`.
 PDF scan không có lớp chữ không đọc được (skill không làm OCR).
 
 ## Tự động cài Python environment
@@ -319,6 +329,7 @@ python scripts/read_pptx.py requirements/kickoff.pptx --outline-only --output ou
 python scripts/read_csv.py requirements/rules.csv --outline-only --output structure.json
 python scripts/read_html.py requirements/checkout.html --outline-only --output outline.json
 python scripts/read_txt.py requirements/notes.txt --outline-only --output outline.json
+python scripts/read_email.py requirements/chot-yeu-cau.eml --outline-only --output outline.json
 ```
 
 Tìm và trích phần liên quan:
@@ -336,6 +347,7 @@ python scripts/read_pptx.py requirements/kickoff.pptx --slides 3-5 --output extr
 python scripts/read_csv.py requirements/rules.csv --filter Status=pending --output extracted.json
 python scripts/read_html.py requirements/checkout.html --heading "Fees" --output extracted.json
 python scripts/read_txt.py requirements/notes.txt --start-line 1 --end-line 80 --output extracted.json
+python scripts/read_email.py requirements/chot-yeu-cau.msg --attachments --output extracted.json   # kèm file đính kèm
 ```
 
 Chuẩn hóa nếu cần artifact trung gian:

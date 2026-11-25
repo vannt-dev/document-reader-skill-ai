@@ -28,13 +28,28 @@
     "doc_id": { "type": "string" },
     "path": { "type": "string" },
     "sha256": { "type": "string" },
-    "type": { "enum": ["excel", "markdown", "pdf", "docx", "pptx", "csv", "html", "text", "unknown"] },
+    "type": { "enum": ["excel", "markdown", "pdf", "docx", "pptx", "csv", "html", "text", "email", "unknown"] },
     "error": { "type": "string" },
     "ocr": {
       "type": "object",
       "description": "Present when the PDF was cached with OCR on; pages read that way carry ref.ocr.",
       "required": ["languages"],
       "properties": { "languages": { "type": "string" } }
+    },
+    "email_attachments": {
+      "type": "object",
+      "description": "Present when the e-mail was cached with --email-attachments: the attachments' blocks carry ref.attachment; not_read lists the others with the reason.",
+      "required": ["not_read"],
+      "properties": {
+        "not_read": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "reason"],
+            "properties": { "name": { "type": "string" }, "reason": { "type": "string" } }
+          }
+        }
+      }
     },
     "changes": {
       "type": "object",

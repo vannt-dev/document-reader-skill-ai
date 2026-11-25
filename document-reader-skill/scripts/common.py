@@ -87,6 +87,8 @@ DOCUMENT_TYPES = {
     ".txt": "text",
     ".html": "html",
     ".htm": "html",
+    ".eml": "email",
+    ".msg": "email",
 }
 
 # Byte-order marks, longest first: the UTF-32 LE mark starts with the UTF-16 LE one.

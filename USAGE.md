@@ -1,6 +1,6 @@
 # Hướng dẫn sử dụng Document Reader
 
-Hướng dẫn thực hành để cài và dùng skill: đọc requirement Excel/CSV/Markdown/PDF/Word/PowerPoint/HTML/text **một lần**,
+Hướng dẫn thực hành để cài và dùng skill: đọc requirement Excel/CSV/Markdown/PDF/Word/PowerPoint/HTML/text/e-mail **một lần**,
 lưu vào cache bền, rồi dùng lại cho nhiều context mà không phải đọc lại tài liệu.
 
 > Tổng quan kiến trúc và triết lý xem [`README.vi.md`](README.vi.md).
@@ -72,7 +72,7 @@ Gemini CLI:  ~/.gemini/skills/document-reader
 
 ## 2. Dùng hằng ngày — cách đơn giản (để agent tự làm)
 
-1. Đặt tài liệu `.xlsx` / `.xlsm` / `.csv` / `.tsv` / `.md` / `.markdown` / `.pdf` / `.docx` / `.pptx` / `.html` / `.htm` / `.txt` vào `requirements/`.
+1. Đặt tài liệu `.xlsx` / `.xlsm` / `.csv` / `.tsv` / `.md` / `.markdown` / `.pdf` / `.docx` / `.pptx` / `.html` / `.htm` / `.txt` / `.eml` / `.msg` vào `requirements/`.
 2. Mở coding agent **tại thư mục project**.
 3. Gõ:
 
@@ -198,6 +198,10 @@ lệnh trả về `no_previous_version`.
 | Đọc một mục HTML | `read_html.py requirements/checkout.html --heading "Fees"` |
 | Outline file text (mã hóa, heading `#` nếu có) | `read_txt.py requirements/notes.txt --outline-only` |
 | Đọc một đoạn dòng file text | `read_txt.py requirements/notes.txt --start-line 1 --end-line 80` |
+| Outline e-mail (From/To/Cc/Date/Subject, danh sách file đính kèm) | `read_email.py requirements/chot-yeu-cau.eml --outline-only` |
+| Đọc e-mail (`.eml`, `.msg` của Outlook cần `olefile`) | `read_email.py requirements/chot-yeu-cau.msg` |
+| Đọc e-mail kèm các file đính kèm là tài liệu skill đọc được | `read_email.py requirements/chot-yeu-cau.eml --attachments` |
+| Đưa file đính kèm của e-mail vào cache | `build_cache.py --manifest .document-reader/manifest.json --email-attachments` |
 
 ---
 
@@ -270,6 +274,8 @@ Hai tầng lưu trữ:
 | Test/kết quả mâu thuẫn với source code | Bytecode `__pycache__` cũ. Xoá `__pycache__/` rồi chạy lại (với pytest: `-B -p no:cacheprovider`). |
 | `.xls` bị từ chối | Mở bằng Excel và Save As `.xlsx` hoặc `.xlsm`. |
 | `PDF reading requires pypdf` | Cài vào venv: `uv pip install --python <venv-python> pypdf`, hoặc chạy lại setup với `/install-deps`. |
+| `Outlook .msg reading requires olefile` | Cài vào venv: `uv pip install --python <venv-python> olefile`. Không có gói này thì `.eml` và các định dạng khác vẫn đọc được. |
+| `Not an Outlook .msg file` | File không phải e-mail Outlook (ví dụ `.doc`/`.xls` cũ bị đổi đuôi). Mở bằng Outlook rồi lưu lại, hoặc lưu thành `.eml`. |
 | `PDF table extraction requires pdfplumber` | Cài vào venv: `uv pip install --python <venv-python> pdfplumber`. Không có thư viện này thì phần đọc chữ của PDF vẫn chạy, chỉ thiếu bảng. |
 | `--tables` không tìm thấy bảng | Chỉ nhận bảng có đường kẻ. Bảng căn bằng khoảng trắng phải đọc từ phần chữ của trang. |
 | PDF báo `No extractable text` | File là bản scan. Cài OCR (`setup-ocr.ps1` hoặc `setup-ocr.sh`) rồi chạy `build_cache.py --ocr`, hoặc đọc trực tiếp bằng `read_pdf.py --ocr`. |

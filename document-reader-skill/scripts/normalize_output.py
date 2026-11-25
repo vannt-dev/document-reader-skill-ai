@@ -49,13 +49,22 @@ def main() -> int:
         elif payload.get("type") == "csv" and "preview" in payload:
             data = {"rows": payload.get("rows"), "columns": payload.get("columns"), "preview": payload["preview"]}
             blocks = [{"kind": "structure", "source": source_ref(payload), "data": data}]
-        elif payload.get("type") in {"markdown", "pdf", "docx", "pptx", "html", "text"} and "content" in payload:
+        elif payload.get("type") in {"markdown", "pdf", "docx", "pptx", "html", "text", "email"} and "content" in payload:
             blocks = [{"kind": "text", "source": source_ref(payload), "data": payload["content"]}]
             # Word comments and tracked changes of the range read, when it has any.
             blocks += [
                 {"kind": "structure", "source": {**source_ref(payload), "part": part}, "data": payload[part]}
                 for part in ("comments", "revisions") if payload.get(part)
             ]
+            # read_email.py --attachments: each attachment read, as text of its own.
+            blocks += [
+                {"kind": "text", "source": {**source_ref(payload), "attachment": item["name"]}, "data": item["content"]}
+                for item in payload.get("attachments", []) if "content" in item
+            ]
+        elif payload.get("type") == "email" and "headers" in payload:
+            # read_email.py --outline-only: the headers and the list of attachments.
+            data = {key: payload[key] for key in ("headers", "line_count", "attachments") if key in payload}
+            blocks = [{"kind": "structure", "source": source_ref(payload), "data": data}]
         elif payload.get("type") == "docx" and "thread_count" in payload:
             # read_docx.py --comments: the threads alone, with the open count.
             data = {key: payload[key] for key in ("summary", "thread_count", "open_count", "comments")}

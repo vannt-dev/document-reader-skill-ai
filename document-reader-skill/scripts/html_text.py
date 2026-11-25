@@ -236,12 +236,17 @@ def html_document(path: Path) -> dict:
     if path.stat().st_size > MAX_HTML_BYTES:
         raise ValueError(f"HTML file is larger than {MAX_HTML_BYTES // (1024 * 1024)} MB; refusing to read it")
     text, encoding = html_decode(path.read_bytes())
+    return {**html_text_document(text), "encoding": encoding}
+
+
+def html_text_document(text: str) -> dict:
+    """{"title", "items"} of HTML already decoded to text, such as an e-mail's HTML body."""
     parser = _Extractor()
     parser.feed(text)
     parser.close()
     for index, item in enumerate(parser.items, 1):
         item["index"] = index
-    return {"title": parser.title, "encoding": encoding, "items": parser.items}
+    return {"title": parser.title, "items": parser.items}
 
 
 def html_items(path: Path) -> list[dict]:
