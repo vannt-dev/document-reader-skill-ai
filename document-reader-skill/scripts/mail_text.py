@@ -47,6 +47,30 @@ MAIL_HEADERS = ("from", "to", "cc", "subject", "date", "message-id", "received",
 MSG_HINT = "Outlook .msg reading requires olefile: python -m pip install olefile"
 
 
+# The types of the documents the reader supports, which Python's own table may lack
+# (on Windows it comes from the registry, without Office types when Office is absent).
+DOCUMENT_MIME_TYPES = {
+    ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".xlsm": "application/vnd.ms-excel.sheet.macroenabled.12",
+    ".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".pdf": "application/pdf", ".csv": "text/csv", ".tsv": "text/tab-separated-values",
+    ".txt": "text/plain", ".md": "text/markdown", ".markdown": "text/markdown",
+    ".html": "text/html", ".htm": "text/html", ".eml": "message/rfc822", ".msg": "application/vnd.ms-outlook",
+}
+
+
+def guess_type(name: str) -> str | None:
+    return DOCUMENT_MIME_TYPES.get(Path(name).suffix.lower()) or mimetypes.guess_type(name)[0]
+
+
+def guess_suffix(content_type: str) -> str:
+    for suffix, known in DOCUMENT_MIME_TYPES.items():
+        if known == content_type:
+            return suffix
+    return mimetypes.guess_extension(content_type) or ""
+
+
 # --- output -------------------------------------------------------------------
 
 
@@ -285,7 +309,7 @@ def _eml_attachment(part: Message, number: int) -> dict:
         name = _header(part.get_filename()) or _named(subject, ".eml", number)
     else:
         data = _payload(part)
-        name = _header(part.get_filename()) or _named(None, mimetypes.guess_extension(content_type) or "", number)
+        name = _header(part.get_filename()) or _named(None, guess_suffix(content_type), number)
     return {"name": name, "content_type": content_type, "size": len(data), "data": data}
 
 
@@ -497,7 +521,7 @@ class _MsgReader:
             }
         data = self._binary(storage, 0x3701)
         if not content_type and name:
-            content_type = mimetypes.guess_type(name)[0]
+            content_type = guess_type(name)
         return {
             "name": name or f"attachment-{number}",
             "content_type": content_type or "application/octet-stream",

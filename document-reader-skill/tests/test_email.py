@@ -392,3 +392,12 @@ def test_search_and_normalize_mail(tmp_path, sample_eml):
     normalized = run("normalize_output.py", outline)
     assert normalized.returncode == 0, normalized.stderr
     assert json.loads(normalized.stdout)["blocks"][0]["data"]["headers"]["cc"] == "Boss <boss@example.com>"
+
+
+def test_attachment_types_do_not_depend_on_the_platform_table(monkeypatch):
+    # Windows takes Python's MIME table from the registry, which lacks Office types without Office.
+    monkeypatch.setattr(mail_text.mimetypes, "guess_type", lambda name, strict=True: (None, None))
+    monkeypatch.setattr(mail_text.mimetypes, "guess_extension", lambda kind, strict=True: None)
+    assert mail_text.guess_type("Spec.DOCX") == mail_text.DOCUMENT_MIME_TYPES[".docx"]
+    assert mail_text.guess_suffix("application/pdf") == ".pdf"
+    assert mail_text.guess_suffix("image/x-unknown") == ""
