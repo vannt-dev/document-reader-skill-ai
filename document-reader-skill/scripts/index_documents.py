@@ -138,11 +138,19 @@ def text_metadata(path: Path, max_headings: int) -> dict:
     return {**structure, "headings": headings[:max_headings], "headings_truncated": len(headings) > max_headings}
 
 
+def email_metadata(path: Path, max_headings: int) -> dict:
+    from read_email import outline
+
+    structure = outline(path)
+    del structure["document"], structure["type"]
+    return structure
+
+
 # Types added after Excel and Markdown: a file of one of these that cannot be
 # read is recorded on the document rather than failing the whole index.
 LATER_TYPES = {
     "pdf": pdf_metadata, "docx": docx_metadata, "pptx": pptx_metadata, "csv": csv_metadata,
-    "html": html_metadata, "text": text_metadata,
+    "html": html_metadata, "text": text_metadata, "email": email_metadata,
 }
 
 

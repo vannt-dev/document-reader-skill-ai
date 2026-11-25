@@ -354,3 +354,161 @@ def sample_txt(tmp_path):
         b"# Open questions\r\nWho approves refunds?\r\n"
     )
     return path
+
+
+def write_cfb(path, tree):
+    """Write a minimal OLE compound file (version 3): `tree` maps names to bytes
+    (a stream) or to a dict (a storage). Streams under 4096 bytes go in the mini
+    stream, as the format requires; olefile reads the result."""
+    import math
+    import struct
+
+    sector, mini_sector, cutoff = 512, 64, 4096
+    free, end, fat_sector, no_stream = 0xFFFFFFFF, 0xFFFFFFFE, 0xFFFFFFFD, 0xFFFFFFFF
+    entries = []
+
+    def add(name, node):
+        entry, index = {"name": name}, len(entries)
+        entries.append(entry)
+        if isinstance(node, dict):
+            entry["type"], entry["kids"] = 1, [add(key, value) for key, value in node.items()]
+        else:
+            entry["type"], entry["data"] = 2, bytes(node)
+        return index
+
+    add("Root Entry", tree)
+    entries[0]["type"] = 5
+    mini, mini_fat, big = bytearray(), [], []
+    for entry in entries:
+        if entry["type"] != 2:
+            continue
+        data = entry["data"]
+        if not data:
+            entry["start"] = end
+        elif len(data) < cutoff:
+            count = math.ceil(len(data) / mini_sector)
+            entry["start"] = len(mini_fat)
+            mini_fat += list(range(len(mini_fat) + 1, len(mini_fat) + count)) + [end]
+            mini += data.ljust(count * mini_sector, b"\0")
+        else:
+            big.append(entry)
+
+    dir_count = math.ceil(len(entries) * 128 / sector)
+    mini_fat_count = math.ceil(len(mini_fat) * 4 / sector)
+    mini_stream_count = math.ceil(len(mini) / sector)
+    big_counts = [math.ceil(len(entry["data"]) / sector) for entry in big]
+    others = dir_count + mini_fat_count + mini_stream_count + sum(big_counts)
+    fat_count = 1
+    while fat_count * (sector // 4) < others + fat_count:
+        fat_count += 1
+    fat = [fat_sector] * fat_count
+
+    def chain(count):
+        if not count:
+            return end
+        start = len(fat)
+        fat.extend(list(range(start + 1, start + count)) + [end])
+        return start
+
+    dir_start = chain(dir_count)
+    mini_fat_start = chain(mini_fat_count)
+    entries[0]["start"] = chain(mini_stream_count)
+    entries[0]["size"] = len(mini)
+    for entry, count in zip(big, big_counts):
+        entry["start"] = chain(count)
+    fat += [free] * (fat_count * (sector // 4) - len(fat))
+
+    def order(index):
+        name = entries[index]["name"]
+        return (len(name), name.upper())
+
+    for entry in entries:
+        entry.setdefault("left", no_stream)
+        entry.setdefault("right", no_stream)
+        entry["child"] = no_stream
+    for entry in entries:
+        kids = sorted(entry.get("kids", []), key=order)
+        if kids:
+            # A chain of right siblings in name order: a valid, if lopsided, tree.
+            entry["child"] = kids[0]
+            for here, after in zip(kids, kids[1:]):
+                entries[here]["right"] = after
+
+    directory = bytearray()
+    for entry in entries:
+        name = entry["name"].encode("utf-16-le")
+        size = entry.get("size", len(entry.get("data", b"")))
+        directory += struct.pack(
+            "<64sHBBIII16sIQQIQ", name, len(name) + 2, entry["type"], 1,
+            entry["left"], entry["right"], entry["child"], b"\0" * 16, 0, 0, 0,
+            entry.get("start", end if entry["type"] == 2 else 0), size,
+        )
+    while len(directory) % sector:
+        directory += struct.pack("<64sHBBIII16sIQQIQ", b"", 0, 0, 0, no_stream, no_stream, no_stream, b"\0" * 16, 0, 0, 0, 0, 0)
+
+    difat = list(range(fat_count)) + [free] * (109 - fat_count)
+    header = struct.pack(
+        "<8s16sHHHHH6sIIIIIIIII109I", b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1", b"\0" * 16, 0x3E, 3, 0xFFFE, 9, 6,
+        b"\0" * 6, 0, fat_count, dir_start, 0, cutoff,
+        mini_fat_start if mini_fat_count else end, mini_fat_count, end, 0, *difat,
+    )
+    body = b"".join(struct.pack("<I", value) for value in fat)
+    body += bytes(directory)
+    body += b"".join(struct.pack("<I", value) for value in mini_fat).ljust(mini_fat_count * sector, b"\xff")
+    body += bytes(mini).ljust(mini_stream_count * sector, b"\0")
+    for entry, count in zip(big, big_counts):
+        body += entry["data"].ljust(count * sector, b"\0")
+    path.write_bytes(header + body)
+    return path
+
+
+def msg_properties(header_size, fixed):
+    """A __properties_version1.0 stream: `fixed` maps (id, type) to 8 value bytes."""
+    import struct
+
+    data = b"\0" * header_size
+    for (prop, kind), value in fixed.items():
+        data += struct.pack("<II8s", (prop << 16) | kind, 6, value)
+    return data
+
+
+def msg_string(prop, text, codepage=None):
+    """A string property stream: Unicode, or 8-bit in `codepage`."""
+    if codepage:
+        return {f"__substg1.0_{prop:04X}001E": text.encode(codepage)}
+    return {f"__substg1.0_{prop:04X}001F": text.encode("utf-16-le")}
+
+
+def msg_tree(strings, fixed=None, recipients=(), attachments=(), header_size=32, codepage=None, binaries=None):
+    """The storages and streams of a .msg message.
+
+    `recipients` are (type, name, address), type 1 To / 2 Cc; `attachments` are
+    (name, mime type, bytes), or (name, None, a msg_tree(...)) for an attached Outlook item.
+    """
+    import struct
+
+    tree = {}
+    for prop, text in strings.items():
+        tree.update(msg_string(prop, text, codepage))
+    for prop, data in (binaries or {}).items():
+        tree[f"__substg1.0_{prop:04X}0102"] = data
+    fixed = dict(fixed or {})
+    if codepage:
+        fixed[(0x3FFD, 0x0003)] = struct.pack("<iI", int(codepage[2:]), 0)
+    for number, (kind, name, address) in enumerate(recipients):
+        storage = {"__properties_version1.0": msg_properties(8, {(0x0C15, 0x0003): struct.pack("<iI", kind, 0)})}
+        storage.update(msg_string(0x3001, name, codepage))
+        storage.update(msg_string(0x39FE, address, codepage))
+        tree[f"__recip_version1.0_#{number:08X}"] = storage
+    for number, (name, mime, data) in enumerate(attachments):
+        storage = {"__properties_version1.0": msg_properties(8, {(0x3705, 0x0003): struct.pack("<iI", 5 if isinstance(data, dict) else 1, 0)})}
+        storage.update(msg_string(0x3707, name, codepage))
+        if mime:
+            storage.update(msg_string(0x370E, mime, codepage))
+        if isinstance(data, dict):
+            storage["__substg1.0_3701000D"] = data
+        else:
+            storage["__substg1.0_37010102"] = data
+        tree[f"__attach_version1.0_#{number:08X}"] = storage
+    tree["__properties_version1.0"] = msg_properties(header_size, fixed)
+    return tree

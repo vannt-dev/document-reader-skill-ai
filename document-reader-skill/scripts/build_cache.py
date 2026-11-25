@@ -267,6 +267,54 @@ def extract_excel(path: Path, window: int) -> list[dict]:
     return blocks + excel_graphic_blocks(path)
 
 
+def extract_email(path: Path, window: int, attachments: bool = False) -> tuple[list[dict], list[dict]]:
+    """The message as line-cited text blocks (headers, body, the list of attachments).
+
+    With `attachments`, each attachment that is a supported document adds its own
+    blocks after them (`attachment-2/page-1`, cited by `ref.attachment`); returns
+    (blocks, the attachments not read with the reason).
+    """
+    from mail_text import attachment_documents, message_blocks, read_message
+
+    message = read_message(path)
+    blocks = message_blocks(message, window)
+    not_read = []
+    if attachments:
+        for entry in attachment_documents(message, window):
+            if "blocks" not in entry:
+                not_read.append({"name": entry["name"], "reason": entry["not_read"]})
+                continue
+            for block in entry["blocks"]:
+                blocks.append({
+                    "block_id": f"attachment-{entry['attachment']}/{block['block_id']}",
+                    "ref": {"attachment": entry["attachment"], "attachment_name": entry["name"], **block["ref"]},
+                    "label": f"{entry['name']} > {block['label']}",
+                    "content": block["content"],
+                })
+    return blocks, not_read
+
+
+def extract_blocks(source: Path, doc_type: str, window: int, ocr_languages: str | None = None) -> list[dict]:
+    """The cache blocks of one document of a known type."""
+    if doc_type == "markdown":
+        return extract_markdown(source)
+    if doc_type == "pdf":
+        return extract_pdf(source, ocr_languages)
+    if doc_type == "docx":
+        return extract_docx(source)
+    if doc_type == "pptx":
+        return extract_pptx(source)
+    if doc_type == "csv":
+        return extract_csv(source, window)
+    if doc_type == "html":
+        return extract_html(source)
+    if doc_type == "text":
+        return extract_text(source, window)
+    if doc_type == "email":
+        return extract_email(source, window)[0]
+    return extract_excel(source, window)
+
+
 def excel_graphic_blocks(path: Path) -> list[dict]:
     """One text block a chart or SmartArt diagram, after the sheets' cells: `Sales!chart-1`."""
     from doc_text import xlsx_graphics
@@ -295,7 +343,7 @@ def excel_graphic_blocks(path: Path) -> list[dict]:
 
 def build(
     manifest_path: Path, cache_dir: Path, window: int, force: bool = False,
-    ocr_languages: str | None = None, id_pattern: str | None = None,
+    ocr_languages: str | None = None, id_pattern: str | None = None, email_attachments: bool = False,
 ) -> dict:
     """Write one cache file per document of the manifest, and the index of them.
 
@@ -306,6 +354,9 @@ def build(
     When a document's hash changed, its new cache file carries a `changes`
     report against the version cached before (see cache_changes.py);
     `id_pattern` overrides the regular expression for requirement IDs.
+
+    `email_attachments` also reads the attachments of an e-mail that are
+    documents of a supported type, as blocks of that e-mail.
     """
     manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
     root = Path(manifest["requirements_root"])
@@ -336,33 +387,25 @@ def build(
                 existing = None  # unreadable: rebuild it, with nothing to compare against
         if not force and existing is not None:
             wants_ocr = bool(ocr_languages) and doc_type == "pdf" and "ocr" not in existing
-            if existing.get("sha256") == sha256 and not wants_ocr:
+            wants_attachments = email_attachments and doc_type == "email" and "email_attachments" not in existing
+            if existing.get("sha256") == sha256 and not (wants_ocr or wants_attachments):
                 documents.append(_index_entry(existing))
                 continue
 
         cache_payload = {"doc_id": doc_id, "path": rel, "sha256": sha256, "type": doc_type}
         try:
             source = root / rel
-            if doc_type == "markdown":
-                cache_payload["blocks"] = extract_markdown(source)
-            elif doc_type == "pdf":
-                if ocr_languages:
-                    # Recorded even when no page needed it: it is what says this
-                    # file has already been through OCR.
-                    cache_payload["ocr"] = {"languages": ocr_languages}
-                cache_payload["blocks"] = extract_pdf(source, ocr_languages)
-            elif doc_type == "docx":
-                cache_payload["blocks"] = extract_docx(source)
-            elif doc_type == "pptx":
-                cache_payload["blocks"] = extract_pptx(source)
-            elif doc_type == "csv":
-                cache_payload["blocks"] = extract_csv(source, window)
-            elif doc_type == "html":
-                cache_payload["blocks"] = extract_html(source)
-            elif doc_type == "text":
-                cache_payload["blocks"] = extract_text(source, window)
+            if doc_type == "pdf" and ocr_languages:
+                # Recorded even when no page needed it: it is what says this
+                # file has already been through OCR.
+                cache_payload["ocr"] = {"languages": ocr_languages}
+            if doc_type == "email":
+                cache_payload["blocks"], not_read = extract_email(source, window, email_attachments)
+                if email_attachments:
+                    # Like `ocr`, it says this message's attachments have been read.
+                    cache_payload["email_attachments"] = {"not_read": not_read}
             else:
-                cache_payload["blocks"] = extract_excel(source, window)
+                cache_payload["blocks"] = extract_blocks(source, doc_type, window, ocr_languages)
         except Exception as exc:  # noqa: BLE001 - record, do not abort the whole build
             cache_payload["blocks"] = []
             cache_payload["error"] = str(exc)
@@ -438,6 +481,10 @@ def main() -> int:
     parser.add_argument("--ocr", action="store_true", help="Read PDF pages that have no text layer with Tesseract")
     parser.add_argument("--ocr-lang", help="Languages for --ocr, such as vie+eng (default: Vietnamese and English)")
     parser.add_argument(
+        "--email-attachments", action="store_true",
+        help="Also read the attachments of .eml and .msg files that are supported documents",
+    )
+    parser.add_argument(
         "--id-pattern",
         help="Regular expression for requirement IDs in change reports (default: REQ-12, FR-3.1 style)",
     )
@@ -461,7 +508,8 @@ def main() -> int:
             ocr_languages = ocr.resolve_languages(args.ocr_lang)
         before = _cached_hashes(Path(args.cache_dir))
         index = build(
-            manifest_path, Path(args.cache_dir), args.max_block_rows, args.force, ocr_languages, args.id_pattern
+            manifest_path, Path(args.cache_dir), args.max_block_rows, args.force, ocr_languages, args.id_pattern,
+            args.email_attachments,
         )
         if args.share:
             cache_dir = Path(args.cache_dir)

@@ -36,7 +36,7 @@ Apply requirements from ./requirements
 flowchart TB
   subgraph read["Document Reader scripts: read only"]
     direction LR
-    docs["Requirements folder<br/>Word, PDF, Excel, PowerPoint,<br/>Markdown, CSV, HTML, text"]
+    docs["Requirements folder<br/>Word, PDF, Excel, PowerPoint,<br/>Markdown, CSV, HTML, text, e-mail"]
     scan["Index and normalize<br/>each document once"]
     cache[".document-reader/<br/>manifest, cache, index"]
     evidence["query_cache.py: only the<br/>blocks needed, with their ID<br/>Requirements!A1:F40, page-3"]
@@ -74,6 +74,7 @@ analysis through an API, and cannot touch the file system.
 | PowerPoint | `.pptx`, with charts and SmartArt | slide |
 | HTML | `.html`, `.htm`, such as Confluence or wiki exports | heading and paragraph |
 | Plain text | `.txt` | line |
+| E-mail | `.eml`, Outlook `.msg` (needs `olefile`), with the list of attachments | line |
 
 Word text is read with every tracked change accepted; the comments (with replies and
 whether they are resolved) and the tracked insertions, deletions and moves come
@@ -84,6 +85,13 @@ Charts are read from the data the file keeps with them (title, series, categorie
 values, as a table of `cell | cell` rows) and SmartArt as its text, one line a node:
 in a slide's text, after the Word paragraph that holds them, and under each Excel
 sheet's `graphics` in `inspect_excel.py`.
+
+An e-mail is read as its From, To, Cc, Date and Subject, then the body (the plain-text
+version when there is one, else the HTML version as text), then its attachments with
+name, type and size. `read_email.py --attachments` (or `build_cache.py --email-attachments`)
+also reads the attachments that are documents of a supported type, such as a Word
+specification or a forwarded e-mail. Outlook `.msg` files need the small `olefile` package
+(BSD licence); `.eml` needs nothing beyond Python.
 
 Legacy `.xls`, `.doc` and `.ppt` files must be saved in the newer format first.
 Pictures (`.png`, `.jpg`, ...) can be read one at a time with OCR but are not indexed.
@@ -131,8 +139,8 @@ sh setup-python-env.sh
 ```
 
 Both scripts use `uv` to install Python 3.12, create a separate virtual
-environment in `~/.document-reader/venv`, and install `openpyxl`, `pypdf` and
-`pdfplumber`.
+environment in `~/.document-reader/venv`, and install `openpyxl`, `pypdf`,
+`pdfplumber` and `olefile`.
 
 ### OCR for scanned PDFs and pictures (optional)
 

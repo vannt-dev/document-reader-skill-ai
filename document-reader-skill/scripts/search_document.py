@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Search a document and return compact cited matches.
 
-Excel and CSV cite cells, Markdown and plain text cite lines, PDF pages, Word
+Excel and CSV cite cells, Markdown, plain text and e-mail cite lines, PDF pages, Word
 and HTML paragraphs, and PowerPoint slides.
 """
 
@@ -30,11 +30,15 @@ def main() -> int:
             raise ValueError("max-results must be positive and context-lines non-negative")
         matches, truncated = [], False
         find = text_matcher(args.query, args.regex, args.case_sensitive)
-        if path.suffix.lower() in {".md", ".markdown", ".txt"}:
+        if path.suffix.lower() in {".md", ".markdown", ".txt", ".eml", ".msg"}:
             if path.suffix.lower() == ".txt":
                 from read_txt import txt_lines
 
                 lines = txt_lines(path)[0]
+            elif path.suffix.lower() in {".eml", ".msg"}:
+                from mail_text import message_lines, read_message
+
+                lines = message_lines(read_message(path))
             else:
                 lines = path.read_text(encoding="utf-8-sig").splitlines()
             hit_lines = [number for number, line in enumerate(lines, 1) if find(line)]
@@ -42,7 +46,7 @@ def main() -> int:
             for number in hit_lines[:args.max_results]:
                 start, end = max(1, number - args.context_lines), min(len(lines), number + args.context_lines)
                 matches.append({"line": number, "context_start": start, "context_end": end, "text": "\n".join(lines[start - 1:end])})
-            kind = "text" if path.suffix.lower() == ".txt" else "markdown"
+            kind = {".txt": "text", ".eml": "email", ".msg": "email"}.get(path.suffix.lower(), "markdown")
         elif path.suffix.lower() == ".pdf":
             from doc_text import open_pdf, pdf_page_text
 

@@ -46,7 +46,15 @@ Project code changes + tests
 Định dạng đọc được: Excel (`.xlsx`, `.xlsm`, kể cả biểu đồ và SmartArt), CSV (`.csv`, `.tsv`), Markdown,
 PDF (kể cả bảng, và trang scan qua OCR), Word (`.docx`, kể cả comment, track
 changes, biểu đồ và SmartArt), PowerPoint (`.pptx`, kể cả biểu đồ và SmartArt),
-HTML (`.html`, `.htm`, ví dụ bản export Confluence/wiki) và text (`.txt`).
+HTML (`.html`, `.htm`, ví dụ bản export Confluence/wiki), text (`.txt`) và e-mail
+(`.eml`, `.msg` của Outlook).
+
+E-mail được đọc thành From, To, Cc, Date, Subject, rồi nội dung (bản text khi có, nếu
+không thì bản HTML chuyển thành chữ), rồi danh sách file đính kèm (tên, loại, kích
+thước). `read_email.py --attachments` (hoặc `build_cache.py --email-attachments`) đọc
+luôn các file đính kèm thuộc định dạng skill hỗ trợ, ví dụ file Word đặc tả hay một
+e-mail được chuyển tiếp. File `.msg` cần gói nhỏ `olefile` (giấy phép BSD); `.eml` chỉ
+dùng thư viện chuẩn của Python.
 
 Word được đọc như khi đã chấp nhận mọi thay đổi track changes; comment (kèm trả lời
 và trạng thái đã resolve) cùng các phần chèn, xóa, di chuyển được trả về riêng, mỗi
@@ -101,7 +109,7 @@ sh setup-python-env.sh
 ```
 
 Hai bootstrap dùng `uv` để tự cài Python 3.12, tạo venv trung lập tại
-`~/.document-reader/venv` và cài `openpyxl`, `pypdf`, `pdfplumber`.
+`~/.document-reader/venv` và cài `openpyxl`, `pypdf`, `pdfplumber`, `olefile`.
 
 ### OCR cho PDF scan và ảnh (tùy chọn)
 
